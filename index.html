@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SRI Control Documental</title>
+  <style>
+    :root{--bg:#f4f7fb;--card:#fff;--primary:#1f4e79;--primary2:#2f75b5;--accent:#00a6a6;--text:#1f2937;--muted:#6b7280;--line:#dbe4ef}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#eef5ff,#f8fbff);color:var(--text)}
+    header{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;padding:22px 18px 24px;text-align:center;box-shadow:0 3px 14px rgba(0,0,0,.18)}
+    header h1{margin:0;font-size:28px;letter-spacing:.5px}.dev{margin-top:9px;line-height:1.45;font-size:15px;font-weight:600}.sub{margin-top:8px;font-size:14px;opacity:.9}
+    .wrap{max-width:1180px;margin:22px auto;padding:0 14px 30px}.status{background:var(--card);border:1px solid var(--line);border-left:7px solid var(--accent);border-radius:16px;padding:14px 16px;margin-bottom:18px;box-shadow:0 4px 16px rgba(31,78,121,.08);display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}.status b{color:var(--primary)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 8px 22px rgba(31,78,121,.10)}.card h2{margin:0 0 10px;font-size:22px;color:var(--primary);display:flex;align-items:center;gap:8px}.hint{margin:0 0 15px;color:var(--muted);font-size:14px;line-height:1.45}
+    .buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}button,.linkbtn{border:0;border-radius:16px;padding:15px 12px;font-size:16px;font-weight:700;cursor:pointer;background:#e9f3ff;color:var(--primary);text-align:center;text-decoration:none;transition:.15s ease;min-height:58px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:inset 0 0 0 1px #cfe2f3}button:hover,.linkbtn:hover{transform:translateY(-1px);box-shadow:0 6px 12px rgba(31,78,121,.13),inset 0 0 0 1px #b6d7f0}.primary{background:linear-gradient(135deg,#d8f3ff,#eaf8ff);color:#0f5f7a}.green{background:linear-gradient(135deg,#e8f8ef,#f2fff7);color:#166534;box-shadow:inset 0 0 0 1px #bbf7d0}.orange{background:linear-gradient(135deg,#fff4df,#fffaf0);color:#92400e;box-shadow:inset 0 0 0 1px #fed7aa}.disabled{opacity:.55;cursor:not-allowed}.full{grid-column:1/-1}
+    .log{margin-top:18px;background:#0f172a;color:#d1fae5;border-radius:16px;padding:14px;min-height:135px;font-family:Consolas,monospace;font-size:13px;overflow:auto;white-space:pre-wrap}.smallbox{margin-top:15px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px;padding:12px;font-size:13px;color:#475569;line-height:1.5}.months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.month{background:#f8fbff;border:1px solid #dbeafe;border-radius:12px;padding:10px 8px;text-align:center;font-size:13px;color:#1e3a8a;font-weight:700}
+    footer{text-align:center;color:#64748b;font-size:13px;padding:18px 10px 28px}.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:16px;z-index:50}.modal-inner{background:white;max-width:560px;width:100%;border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.modal h3{margin:0 0 10px;color:var(--primary)}.modal p{color:#475569;line-height:1.5}
+    @media(max-width:850px){.grid{grid-template-columns:1fr}.buttons{grid-template-columns:1fr}header h1{font-size:24px}.months{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>📊 SRI CONTROL DOCUMENTAL</h1>
+  <div class="dev">Desarrollado by Ing. Alexandra Quiros<br>confipres.ec@gmail.com<br>Guayaquil-Ecuador · Derechos reservados</div>
+  <div class="sub">Compras recibidas TXT · Retenciones XML · Google Drive · Apps Script</div>
+</header>
+<main class="wrap">
+  <section class="status"><div><b>Estado del sistema:</b> <span id="estadoTexto">Listo para trabajar.</span></div><div><b>URL Apps Script:</b> <span>Configurada</span></div></section>
+  <section class="grid">
+    <div class="card"><h2>📄 Compras TXT</h2><p class="hint">Coloca el TXT del SRI en <b>COMPRAS / ENTRADA TXT</b>. Luego presiona procesar. El sistema detecta el mes y año, mueve el TXT y genera mensual + acumulado.</p><div class="buttons"><button class="primary" onclick="ejecutarAccion('crearEntradaTXT','Crear carpeta ENTRADA TXT')">📁 Crear Entrada TXT</button><button class="green" onclick="ejecutarAccion('procesarEntradaTXT','Procesar compras TXT')">📥 Procesar Compras</button><a class="linkbtn" target="_blank" href="https://drive.google.com/drive/folders/1GBvFvnXSMH_E-Snq1_YMS8wvVXA1ccz2">📂 Abrir Compras</a><button class="orange" onclick="mostrarAyuda('compras')">❓ Ayuda Compras</button></div><div class="smallbox">Resultado esperado: archivo <b>Compras MES AÑO</b> y <b>Compras Acumulado AÑO</b>.</div></div>
+    <div class="card"><h2>🧾 Retenciones XML</h2><p class="hint">Coloca todos los XML en <b>RETENCIONES / ENTRADA XML</b>. Luego presiona procesar. Una retención puede generar varias filas: renta, IVA u otros códigos.</p><div class="buttons"><button class="primary" onclick="ejecutarAccion('crearEntradaXML','Crear carpeta ENTRADA XML')">📁 Crear Entrada XML</button><button class="green" onclick="ejecutarAccion('procesarEntradaXML','Procesar retenciones XML')">📥 Procesar Retenciones</button><a class="linkbtn" target="_blank" href="https://drive.google.com/drive/folders/1-dHpEZn_S7V_8MpacWNQDsGjCL2NhP2B">📂 Abrir Retenciones</a><button class="orange" onclick="mostrarAyuda('retenciones')">❓ Ayuda Retenciones</button></div><div class="smallbox">Resultado esperado: archivo <b>Retenciones MES AÑO</b> y <b>Retenciones Acumulado AÑO</b>.</div></div>
+    <div class="card"><h2>📅 Meses del año</h2><p class="hint">Panel visual para recordar la estructura mensual que se genera automáticamente.</p><div class="months"><div class="month">01 ENERO</div><div class="month">02 FEBRERO</div><div class="month">03 MARZO</div><div class="month">04 ABRIL</div><div class="month">05 MAYO</div><div class="month">06 JUNIO</div><div class="month">07 JULIO</div><div class="month">08 AGOSTO</div><div class="month">09 SEPTIEMBRE</div><div class="month">10 OCTUBRE</div><div class="month">11 NOVIEMBRE</div><div class="month">12 DICIEMBRE</div></div></div>
+    <div class="card"><h2>🔍 Próxima fase</h2><p class="hint">Esta primera pantalla procesa archivos. Luego agregaremos consultas, cruces y alertas.</p><div class="buttons"><button class="disabled" disabled>🔎 Buscar proveedor</button><button class="disabled" disabled>🧩 Cruzar compras-retenciones</button><button class="disabled" disabled>⚠️ Duplicados</button><button class="disabled" disabled>📊 Resumen gráfico</button></div><div class="smallbox">Primero probamos que los botones de proceso funcionen desde GitHub Pages.</div></div>
+    <div class="card full"><h2>📋 Registro de actividad</h2><p class="hint">Por seguridad de Google, la app envía la orden al Apps Script. Si el proceso demora, revisa Drive unos segundos después.</p><div id="log" class="log">Sistema listo.\n</div></div>
+  </section>
+</main>
+<footer>SRI Control Documental · Desarrollado by Ing. Alexandra Quiros · Guayaquil-Ecuador · Derechos reservados</footer>
+<div id="modal" class="modal" onclick="cerrarAyuda(event)"><div class="modal-inner"><h3 id="modalTitulo">Ayuda</h3><p id="modalTexto"></p><button onclick="cerrarModal()">Cerrar</button></div></div>
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHBnA0Z6fjUK1eOZKFiiABiHk8K-Ftpk4fO0FAi1DcEHtoSu85tM7qUJez6C-I_Zt4fw/exec";
+function log(msg){const el=document.getElementById('log');const now=new Date().toLocaleString();el.textContent+='['+now+'] '+msg+'\n';el.scrollTop=el.scrollHeight;}
+function estado(msg){document.getElementById('estadoTexto').textContent=msg;}
+async function ejecutarAccion(accion,descripcion){estado('Ejecutando: '+descripcion+'...');log('Enviando orden: '+accion);try{await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion:accion,origen:'SRI_CONTROL_HTML'})});log('Orden enviada correctamente: '+descripcion);log('Revisa Google Drive. Si procesaste archivos, espera unos segundos.');estado('Orden enviada. Revisa Drive para confirmar el resultado.');}catch(err){log('ERROR: '+err.message);estado('Error al enviar la orden.');}}
+function mostrarAyuda(tipo){const modal=document.getElementById('modal');const titulo=document.getElementById('modalTitulo');const texto=document.getElementById('modalTexto');if(tipo==='compras'){titulo.textContent='Ayuda Compras TXT';texto.innerHTML='1. Entra a Drive.<br>2. Abre COMPRAS / ENTRADA TXT.<br>3. Sube ahí el TXT descargado del SRI.<br>4. Regresa a esta app y presiona Procesar Compras.<br><br>El sistema detecta el mes, mueve el archivo y genera el Excel mensual y acumulado.';}else{titulo.textContent='Ayuda Retenciones XML';texto.innerHTML='1. Entra a Drive.<br>2. Abre RETENCIONES / ENTRADA XML.<br>3. Sube ahí todos los XML del mes.<br>4. Regresa a esta app y presiona Procesar Retenciones.<br><br>El sistema detecta el periodo fiscal, mueve los XML y genera el Excel mensual y acumulado.';}modal.style.display='flex';}
+function cerrarModal(){document.getElementById('modal').style.display='none';}
+function cerrarAyuda(e){if(e.target.id==='modal') cerrarModal();}
+</script>
+</body>
+</html>
