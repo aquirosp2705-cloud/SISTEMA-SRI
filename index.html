@@ -14,8 +14,7 @@
       --text: #1f2937;
       --muted: #6b7280;
       --line: #dbe4f0;
-      --ok: #16805b;
-      --warn: #9a5b00;
+      --danger: #9f1239;
     }
     * { box-sizing: border-box; }
     body {
@@ -64,12 +63,39 @@
       text-align: center;
       transition: .2s ease;
     }
-    .drop.dragover {
-      background: #e8f1ff;
-      border-color: var(--primary2);
-    }
+    .drop.dragover { background: #e8f1ff; border-color: var(--primary2); }
     input[type="file"] { width: 100%; font-size: 15px; margin-top: 8px; }
     .small { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .filelist {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+      text-align: left;
+      max-height: 180px;
+      overflow: auto;
+    }
+    .fileitem {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .remove {
+      border: 0;
+      background: var(--danger);
+      color: white;
+      border-radius: 10px;
+      padding: 6px 9px;
+      cursor: pointer;
+      font-size: 12px;
+      width: auto;
+      box-shadow: none;
+    }
     .button-row { display: grid; gap: 12px; }
     button {
       width: 100%;
@@ -150,42 +176,46 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>6.0</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>6.1</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Subida múltiple</span></div>
   </section>
 
   <section class="grid">
     <div class="card">
       <h2>📄 Compras TXT</h2>
-      <p>Selecciona o arrastra uno o varios TXT. El sistema los sube, detecta mes/año, crea carpetas, genera mensual y acumulado.</p>
+      <p>Selecciona o arrastra uno o varios TXT. Puedes agregar archivos varias veces antes de procesar.</p>
       <div id="dropTXT" class="drop">
         <b>Arrastra TXT aquí</b><br>
         <input id="txtFiles" type="file" accept=".txt,text/plain" multiple />
         <div id="txtInfo" class="small">Ningún TXT seleccionado</div>
+        <div id="txtList" class="filelist"></div>
       </div>
       <div class="button-row">
         <button onclick="subirYProcesarTXT()">⬆️ Subir y Procesar Compras TXT</button>
+        <button class="secondary" onclick="limpiarSeleccion('txt')">🧹 Limpiar TXT seleccionados</button>
         <button class="secondary" onclick="ejecutarAccion('procesarEntradaTXT', 'Procesando TXT ya existentes en Drive...')">📥 Procesar TXT desde Entrada Drive</button>
       </div>
     </div>
 
     <div class="card">
       <h2>🧾 Retenciones XML</h2>
-      <p>Selecciona o arrastra uno o varios XML. Lee formato 2.0.0 y 1.0.0, genera mensual, acumulado y resumen por código.</p>
+      <p>Selecciona o arrastra uno o varios XML. El sistema lee formato 2.0.0 y 1.0.0.</p>
       <div id="dropXML" class="drop">
         <b>Arrastra XML aquí</b><br>
         <input id="xmlFiles" type="file" accept=".xml,text/xml,application/xml" multiple />
         <div id="xmlInfo" class="small">Ningún XML seleccionado</div>
+        <div id="xmlList" class="filelist"></div>
       </div>
       <div class="button-row">
         <button onclick="subirYProcesarXML()">⬆️ Subir y Procesar Retenciones XML</button>
+        <button class="secondary" onclick="limpiarSeleccion('xml')">🧹 Limpiar XML seleccionados</button>
         <button class="secondary" onclick="ejecutarAccion('procesarEntradaXML', 'Procesando XML ya existentes en Drive...')">📥 Procesar XML desde Entrada Drive</button>
       </div>
     </div>
   </section>
 
   <div class="note">
-    <b>Uso recomendado:</b> selecciona todos los TXT o XML del mes y presiona el botón de subir/procesar. También puedes mezclar meses; el sistema los separa por año y mes.
+    <b>Nuevo:</b> Compras permite acumular varios TXT seleccionándolos una o varias veces. El Excel de compras genera resumen con número de comprobantes y totales.
   </div>
 
   <div id="resumen" class="summary"></div>
@@ -199,18 +229,27 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyM2kbnQ502NjukqhD9Ixzya-sW_imYJ-2mNXcyBqOsor7VlXTgPBSLXkGOaf7eu08FBA/exec";
+  let seleccionTXT = [];
+  let seleccionXML = [];
 
   window.addEventListener("load", () => {
     verificarScript();
-    prepararDragDrop("dropTXT", "txtFiles", "txtInfo", ".txt");
-    prepararDragDrop("dropXML", "xmlFiles", "xmlInfo", ".xml");
-    document.getElementById("txtFiles").addEventListener("change", () => actualizarInfo("txtFiles","txtInfo","TXT"));
-    document.getElementById("xmlFiles").addEventListener("change", () => actualizarInfo("xmlFiles","xmlInfo","XML"));
+    prepararDragDrop("dropTXT", ".txt", "txt");
+    prepararDragDrop("dropXML", ".xml", "xml");
+
+    document.getElementById("txtFiles").addEventListener("change", e => {
+      agregarArchivos("txt", Array.from(e.target.files || []), ".txt");
+      e.target.value = "";
+    });
+
+    document.getElementById("xmlFiles").addEventListener("change", e => {
+      agregarArchivos("xml", Array.from(e.target.files || []), ".xml");
+      e.target.value = "";
+    });
   });
 
-  function prepararDragDrop(dropId, inputId, infoId, extension) {
+  function prepararDragDrop(dropId, extension, tipo) {
     const drop = document.getElementById(dropId);
-    const input = document.getElementById(inputId);
 
     ["dragenter","dragover"].forEach(ev => {
       drop.addEventListener(ev, e => {
@@ -228,22 +267,54 @@
 
     drop.addEventListener("drop", e => {
       const files = Array.from(e.dataTransfer.files || []);
-      const filtrados = files.filter(f => f.name.toLowerCase().endsWith(extension));
-      const dt = new DataTransfer();
-      filtrados.forEach(f => dt.items.add(f));
-      input.files = dt.files;
-      actualizarInfo(inputId, infoId, extension.replace(".","").toUpperCase());
+      agregarArchivos(tipo, files, extension);
     });
   }
 
-  function actualizarInfo(inputId, infoId, tipo) {
-    const files = document.getElementById(inputId).files;
-    const info = document.getElementById(infoId);
-    if (!files || files.length === 0) {
-      info.textContent = "Ningún " + tipo + " seleccionado";
+  function agregarArchivos(tipo, files, extension) {
+    const validos = files.filter(f => f.name.toLowerCase().endsWith(extension));
+
+    if (validos.length === 0) {
+      alert("No se encontraron archivos " + extension);
       return;
     }
-    info.textContent = files.length + " archivo(s): " + Array.from(files).map(f => f.name).join(", ");
+
+    const destino = tipo === "txt" ? seleccionTXT : seleccionXML;
+
+    validos.forEach(f => {
+      const existe = destino.some(x => x.name === f.name && x.size === f.size);
+      if (!existe) destino.push(f);
+    });
+
+    renderSeleccion(tipo);
+  }
+
+  function renderSeleccion(tipo) {
+    const arr = tipo === "txt" ? seleccionTXT : seleccionXML;
+    const info = document.getElementById(tipo === "txt" ? "txtInfo" : "xmlInfo");
+    const list = document.getElementById(tipo === "txt" ? "txtList" : "xmlList");
+    const label = tipo === "txt" ? "TXT" : "XML";
+
+    info.textContent = arr.length === 0 ? "Ningún " + label + " seleccionado" : arr.length + " archivo(s) " + label + " seleccionado(s)";
+
+    list.innerHTML = arr.map((f, i) => `
+      <div class="fileitem">
+        <span>${f.name}</span>
+        <button class="remove" onclick="quitarArchivo('${tipo}', ${i})">Quitar</button>
+      </div>
+    `).join("");
+  }
+
+  function quitarArchivo(tipo, index) {
+    if (tipo === "txt") seleccionTXT.splice(index, 1);
+    else seleccionXML.splice(index, 1);
+    renderSeleccion(tipo);
+  }
+
+  function limpiarSeleccion(tipo) {
+    if (tipo === "txt") seleccionTXT = [];
+    else seleccionXML = [];
+    renderSeleccion(tipo);
   }
 
   async function verificarScript() {
@@ -260,29 +331,24 @@
   }
 
   async function subirYProcesarTXT() {
-    const input = document.getElementById("txtFiles");
-    if (!input.files || input.files.length === 0) {
+    if (seleccionTXT.length === 0) {
       alert("Selecciona uno o varios TXT primero.");
       return;
     }
-
-    const archivos = await filesToBase64(input.files);
+    const archivos = await filesToBase64(seleccionTXT);
     await ejecutarRequest({ accion: "subirYProcesarTXT", archivos }, "Subiendo y procesando TXT...");
   }
 
   async function subirYProcesarXML() {
-    const input = document.getElementById("xmlFiles");
-    if (!input.files || input.files.length === 0) {
+    if (seleccionXML.length === 0) {
       alert("Selecciona uno o varios XML primero.");
       return;
     }
-
-    const archivos = await filesToBase64(input.files);
+    const archivos = await filesToBase64(seleccionXML);
     await ejecutarRequest({ accion: "subirYProcesarXML", archivos }, "Subiendo y procesando XML...");
   }
 
-  function filesToBase64(fileList) {
-    const files = Array.from(fileList);
+  function filesToBase64(files) {
     return Promise.all(files.map(file => new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
