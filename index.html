@@ -204,7 +204,7 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>7.1</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>7.3</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Control anual</span></div>
   </section>
 
@@ -277,13 +277,31 @@
 
   <section class="card">
     <h2>📂 Descargas de Excel</h2>
-    <p>Descarga únicamente los Excel generados por el sistema. Los TXT y XML quedan como respaldo en Drive.</p>
+    <p>Elige exactamente qué Excel quieres descargar. No se descargan TXT ni XML; esos quedan como respaldo en Drive.</p>
+
     <div class="grid">
       <div>
         <label>Año</label>
         <input id="anioDescarga" type="number" value="2026" min="2020" max="2035">
       </div>
+
       <div>
+        <label>Tipo</label>
+        <select id="tipoDescarga">
+          <option value="compras">Compras</option>
+          <option value="retenciones">Retenciones</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Archivo</label>
+        <select id="modoDescarga" onchange="actualizarMesDescarga()">
+          <option value="mensual">Mensual</option>
+          <option value="acumulado">Acumulado anual</option>
+        </select>
+      </div>
+
+      <div id="bloqueMesDescarga">
         <label>Mes</label>
         <select id="mesDescarga">
           <option value="01">01 ENERO</option>
@@ -301,10 +319,64 @@
         </select>
       </div>
     </div>
+
     <div class="button-row three" style="margin-top:14px;">
-      <button onclick="cargarLinksExcel()">📥 Buscar Excel del Mes/Año</button>
+      <button onclick="buscarExcelSeleccionado()">🔍 Buscar Excel</button>
     </div>
+
     <div id="descargasExcel" class="links"></div>
+  </section>
+
+  <section class="card">
+    <h2>⚠️ Duplicados</h2>
+    <p>Elige qué duplicados quieres revisar. Los duplicados quedan como pestaña dentro del Excel correspondiente.</p>
+
+    <div class="grid">
+      <div>
+        <label>Año</label>
+        <input id="anioDup" type="number" value="2026" min="2020" max="2035">
+      </div>
+
+      <div>
+        <label>Tipo</label>
+        <select id="tipoDup">
+          <option value="compras">Compras</option>
+          <option value="retenciones">Retenciones</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Archivo</label>
+        <select id="modoDup" onchange="actualizarMesDuplicados()">
+          <option value="mensual">Mensual</option>
+          <option value="acumulado">Acumulado anual</option>
+        </select>
+      </div>
+
+      <div id="bloqueMesDup">
+        <label>Mes</label>
+        <select id="mesDup">
+          <option value="01">01 ENERO</option>
+          <option value="02">02 FEBRERO</option>
+          <option value="03">03 MARZO</option>
+          <option value="04">04 ABRIL</option>
+          <option value="05">05 MAYO</option>
+          <option value="06">06 JUNIO</option>
+          <option value="07">07 JULIO</option>
+          <option value="08">08 AGOSTO</option>
+          <option value="09">09 SEPTIEMBRE</option>
+          <option value="10">10 OCTUBRE</option>
+          <option value="11">11 NOVIEMBRE</option>
+          <option value="12">12 DICIEMBRE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="button-row three" style="margin-top:14px;">
+      <button onclick="buscarDuplicadoSeleccionado()">⚠️ Buscar Duplicados</button>
+    </div>
+
+    <div id="duplicadosPanel"></div>
   </section>
 
   <section class="card">
@@ -323,7 +395,7 @@
   </section>
 
   <div class="note">
-    <b>Nuevo en v7.1:</b> descargas solo de Excel, reprocesar mes, panel anual, detección de duplicados y resumen por proveedor. En retenciones, el resumen incluye el emisor.
+    <b>Nuevo en v7.3:</b> descargas por selección de tipo y archivo, duplicados por selección, reprocesar mes, panel anual y resumen por proveedor. En retenciones, el resumen incluye el emisor.
   </div>
 
   <div id="resumen" class="summary"></div>
@@ -342,6 +414,8 @@
 
   window.addEventListener("load", () => {
     verificarScript();
+    actualizarMesDescarga();
+    actualizarMesDuplicados();
     prepararDragDrop("dropTXT", ".txt", "txt");
     prepararDragDrop("dropXML", ".xml", "xml");
 
@@ -479,35 +553,137 @@
     ejecutarRequest({ accion, anio, mes }, "Reprocesando...");
   }
 
-  function cargarLinksExcel() {
+  function actualizarMesDescarga() {
+    const modo = document.getElementById("modoDescarga").value;
+    document.getElementById("bloqueMesDescarga").style.display = modo === "mensual" ? "block" : "none";
+  }
+
+  function actualizarMesDuplicados() {
+    const modo = document.getElementById("modoDup").value;
+    document.getElementById("bloqueMesDup").style.display = modo === "mensual" ? "block" : "none";
+  }
+
+  function buscarExcelSeleccionado() {
     const anio = document.getElementById("anioDescarga").value;
     const mes = document.getElementById("mesDescarga").value;
-    ejecutarRequest({ accion: "linksExcel", anio, mes }, "Buscando Excel disponibles...");
+    ejecutarRequest({ accion: "linksExcel", anio, mes, seleccion: true }, "Buscando Excel seleccionado...");
   }
 
   function renderLinksExcel(data) {
     const cont = document.getElementById("descargasExcel");
     if (!data.archivos) return;
 
-    const lista = [
-      ["Compras mensual", data.archivos.comprasMensual],
-      ["Compras acumulado anual", data.archivos.comprasAcumulado],
-      ["Retenciones mensual", data.archivos.retencionesMensual],
-      ["Retenciones acumulado anual", data.archivos.retencionesAcumulado]
-    ];
+    const tipo = document.getElementById("tipoDescarga") ? document.getElementById("tipoDescarga").value : "";
+    const modo = document.getElementById("modoDescarga") ? document.getElementById("modoDescarga").value : "";
 
-    const html = lista.map(([titulo, obj]) => {
-      if (!obj) {
-        return `<div class="sumitem">${titulo}<br><span>No encontrado</span></div>`;
-      }
+    let titulo = "";
+    let obj = null;
 
-      return `
-        <a href="${obj.xlsx}" target="_blank" rel="noopener">⬇️ Descargar ${titulo} (.xlsx)</a>
-        <a href="${obj.url}" target="_blank" rel="noopener">📊 Abrir ${titulo} en Google Sheets</a>
+    if (tipo === "compras" && modo === "mensual") {
+      titulo = "Compras mensual";
+      obj = data.archivos.comprasMensual;
+    }
+
+    if (tipo === "compras" && modo === "acumulado") {
+      titulo = "Compras acumulado anual";
+      obj = data.archivos.comprasAcumulado;
+    }
+
+    if (tipo === "retenciones" && modo === "mensual") {
+      titulo = "Retenciones mensual";
+      obj = data.archivos.retencionesMensual;
+    }
+
+    if (tipo === "retenciones" && modo === "acumulado") {
+      titulo = "Retenciones acumulado anual";
+      obj = data.archivos.retencionesAcumulado;
+    }
+
+    if (!obj) {
+      cont.innerHTML = `<div class="sumitem">${titulo}<br><span>No encontrado</span></div>`;
+      return;
+    }
+
+    cont.innerHTML = `
+      <a href="${obj.xlsx}" target="_blank" rel="noopener">⬇️ Descargar ${titulo} (.xlsx)</a>
+      <a href="${obj.url}" target="_blank" rel="noopener">📊 Abrir ${titulo} en Google Sheets</a>
+    `;
+  }
+
+  function buscarDuplicadoSeleccionado() {
+    const anio = document.getElementById("anioDup").value;
+    const mes = document.getElementById("mesDup").value;
+    ejecutarRequest({ accion: "linksDuplicados", anio, mes, seleccion: true }, "Buscando duplicados seleccionados...");
+  }
+
+  function renderDuplicados(data) {
+    const cont = document.getElementById("duplicadosPanel");
+    if (!data.duplicados) return;
+
+    const tipo = document.getElementById("tipoDup") ? document.getElementById("tipoDup").value : "";
+    const modo = document.getElementById("modoDup") ? document.getElementById("modoDup").value : "";
+
+    let titulo = "";
+    let obj = null;
+
+    if (tipo === "compras" && modo === "mensual") {
+      titulo = "Duplicados compras mensual";
+      obj = data.duplicados.comprasMensual;
+    }
+
+    if (tipo === "compras" && modo === "acumulado") {
+      titulo = "Duplicados compras acumulado anual";
+      obj = data.duplicados.comprasAcumulado;
+    }
+
+    if (tipo === "retenciones" && modo === "mensual") {
+      titulo = "Duplicados retenciones mensual";
+      obj = data.duplicados.retencionesMensual;
+    }
+
+    if (tipo === "retenciones" && modo === "acumulado") {
+      titulo = "Duplicados retenciones acumulado anual";
+      obj = data.duplicados.retencionesAcumulado;
+    }
+
+    if (!obj || !obj.existeArchivo) {
+      cont.innerHTML = `
+        <div class="dupgrid">
+          <div class="dupcard">
+            <h3>${titulo}</h3>
+            <div class="count zero">0</div>
+            <div class="small">Archivo no encontrado</div>
+          </div>
+        </div>
       `;
-    }).join("");
+      return;
+    }
 
-    cont.innerHTML = html;
+    if (!obj.existeDuplicados || Number(obj.registros || 0) === 0) {
+      cont.innerHTML = `
+        <div class="dupgrid">
+          <div class="dupcard">
+            <h3>${titulo}</h3>
+            <div class="count zero">0</div>
+            <div class="small">Sin duplicados detectados</div>
+            <a href="${obj.url}" target="_blank" rel="noopener">📊 Abrir Excel</a>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    cont.innerHTML = `
+      <div class="dupgrid">
+        <div class="dupcard">
+          <h3>${titulo}</h3>
+          <div class="count">${obj.registros}</div>
+          <div class="small">${obj.nombreHoja}</div>
+          <a href="${obj.url}" target="_blank" rel="noopener">⚠️ Ver duplicados</a>
+          <a href="${obj.xlsx}" target="_blank" rel="noopener">⬇️ Descargar Excel (.xlsx)</a>
+        </div>
+      </div>
+    `;
   }
 
   function cargarEstadoAnual() {
@@ -545,6 +721,7 @@
         mostrarLinks(data);
         if (data.meses) renderEstadoAnual(data);
         if (data.archivos) renderLinksExcel(data);
+        if (data.duplicados) renderDuplicados(data);
       } else {
         alert("Error: " + (data.mensaje || "Proceso no completado"));
       }
@@ -636,6 +813,8 @@
   function limpiarSalida() {
     document.getElementById("links").innerHTML = "";
     document.getElementById("resumen").innerHTML = "";
+    const dup = document.getElementById("duplicadosPanel");
+    if (dup) dup.innerHTML = "";
   }
 
   function log(txt) {
