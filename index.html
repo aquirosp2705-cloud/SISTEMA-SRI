@@ -204,7 +204,7 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>7.0</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>7.1</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Control anual</span></div>
   </section>
 
@@ -276,6 +276,38 @@
   </section>
 
   <section class="card">
+    <h2>📂 Descargas de Excel</h2>
+    <p>Descarga únicamente los Excel generados por el sistema. Los TXT y XML quedan como respaldo en Drive.</p>
+    <div class="grid">
+      <div>
+        <label>Año</label>
+        <input id="anioDescarga" type="number" value="2026" min="2020" max="2035">
+      </div>
+      <div>
+        <label>Mes</label>
+        <select id="mesDescarga">
+          <option value="01">01 ENERO</option>
+          <option value="02">02 FEBRERO</option>
+          <option value="03">03 MARZO</option>
+          <option value="04">04 ABRIL</option>
+          <option value="05">05 MAYO</option>
+          <option value="06">06 JUNIO</option>
+          <option value="07">07 JULIO</option>
+          <option value="08">08 AGOSTO</option>
+          <option value="09">09 SEPTIEMBRE</option>
+          <option value="10">10 OCTUBRE</option>
+          <option value="11">11 NOVIEMBRE</option>
+          <option value="12">12 DICIEMBRE</option>
+        </select>
+      </div>
+    </div>
+    <div class="button-row three" style="margin-top:14px;">
+      <button onclick="cargarLinksExcel()">📥 Buscar Excel del Mes/Año</button>
+    </div>
+    <div id="descargasExcel" class="links"></div>
+  </section>
+
+  <section class="card">
     <h2>📅 Panel Anual</h2>
     <p>Consulta el estado de cada mes: archivos, comprobantes, retenciones y enlaces rápidos.</p>
     <div class="grid">
@@ -291,7 +323,7 @@
   </section>
 
   <div class="note">
-    <b>Nuevo en v7.0:</b> reprocesar mes, panel anual, detección de duplicados y resumen por proveedor. En retenciones, el resumen incluye el emisor.
+    <b>Nuevo en v7.1:</b> descargas solo de Excel, reprocesar mes, panel anual, detección de duplicados y resumen por proveedor. En retenciones, el resumen incluye el emisor.
   </div>
 
   <div id="resumen" class="summary"></div>
@@ -447,6 +479,37 @@
     ejecutarRequest({ accion, anio, mes }, "Reprocesando...");
   }
 
+  function cargarLinksExcel() {
+    const anio = document.getElementById("anioDescarga").value;
+    const mes = document.getElementById("mesDescarga").value;
+    ejecutarRequest({ accion: "linksExcel", anio, mes }, "Buscando Excel disponibles...");
+  }
+
+  function renderLinksExcel(data) {
+    const cont = document.getElementById("descargasExcel");
+    if (!data.archivos) return;
+
+    const lista = [
+      ["Compras mensual", data.archivos.comprasMensual],
+      ["Compras acumulado anual", data.archivos.comprasAcumulado],
+      ["Retenciones mensual", data.archivos.retencionesMensual],
+      ["Retenciones acumulado anual", data.archivos.retencionesAcumulado]
+    ];
+
+    const html = lista.map(([titulo, obj]) => {
+      if (!obj) {
+        return `<div class="sumitem">${titulo}<br><span>No encontrado</span></div>`;
+      }
+
+      return `
+        <a href="${obj.xlsx}" target="_blank" rel="noopener">⬇️ Descargar ${titulo} (.xlsx)</a>
+        <a href="${obj.url}" target="_blank" rel="noopener">📊 Abrir ${titulo} en Google Sheets</a>
+      `;
+    }).join("");
+
+    cont.innerHTML = html;
+  }
+
   function cargarEstadoAnual() {
     const anio = document.getElementById("anioEstado").value;
     ejecutarRequest({ accion: "estadoAnual", anio }, "Cargando estado anual...");
@@ -481,6 +544,7 @@
         mostrarResumen(data);
         mostrarLinks(data);
         if (data.meses) renderEstadoAnual(data);
+        if (data.archivos) renderLinksExcel(data);
       } else {
         alert("Error: " + (data.mensaje || "Proceso no completado"));
       }
