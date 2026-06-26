@@ -53,6 +53,17 @@
     }
     .card h2 { margin: 0 0 8px; color: var(--primary); font-size: 24px; }
     .card p { margin: 0 0 18px; color: var(--muted); line-height: 1.45; }
+    .inputbox {
+      border: 2px dashed #b9c8dd;
+      border-radius: 16px;
+      padding: 14px;
+      background: #f8fbff;
+      margin-bottom: 12px;
+    }
+    input[type="file"] {
+      width: 100%;
+      font-size: 15px;
+    }
     .button-row { display: grid; gap: 12px; }
     button {
       width: 100%;
@@ -119,33 +130,39 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>5.2</span></div>
-    <div class="pill"><strong>Modo de trabajo</strong><span>Drive automático</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>5.4</span></div>
+    <div class="pill"><strong>Modo de trabajo</strong><span>Subir y procesar</span></div>
   </section>
 
   <section class="grid">
     <div class="card">
       <h2>📄 Compras TXT</h2>
-      <p>Sube el TXT del SRI en <b>COMPRAS / ENTRADA TXT</b>. Luego presiona procesar.</p>
+      <p>Selecciona el TXT del SRI y presiona subir/procesar. El sistema lo guarda, detecta mes/año, mueve el archivo, genera mensual y acumulado.</p>
+      <div class="inputbox">
+        <input id="txtFiles" type="file" accept=".txt,text/plain" />
+      </div>
       <div class="button-row">
-        <button onclick="ejecutarAccion('procesarEntradaTXT', 'Procesando compras TXT...')">📥 Procesar Compras TXT</button>
-        <button class="secondary" onclick="ejecutarAccion('crearEntradaTXT', 'Verificando carpeta ENTRADA TXT...')">📁 Verificar Entrada TXT</button>
+        <button onclick="subirYProcesarTXT()">⬆️ Subir y Procesar Compras TXT</button>
+        <button class="secondary" onclick="ejecutarAccion('procesarEntradaTXT', 'Procesando TXT ya existente en Drive...')">📥 Procesar TXT desde Entrada Drive</button>
       </div>
     </div>
 
     <div class="card">
       <h2>🧾 Retenciones XML</h2>
-      <p>Sube los XML en <b>RETENCIONES / ENTRADA XML</b>. Lee XML 2.0.0 y formato antiguo 1.0.0.</p>
+      <p>Selecciona uno o varios XML. El sistema los guarda, lee formato 2.0.0 y 1.0.0, genera mensual, acumulado y resumen.</p>
+      <div class="inputbox">
+        <input id="xmlFiles" type="file" accept=".xml,text/xml,application/xml" multiple />
+      </div>
       <div class="button-row">
-        <button onclick="ejecutarAccion('procesarEntradaXML', 'Procesando retenciones XML...')">📥 Procesar Retenciones XML</button>
-        <button class="secondary" onclick="ejecutarAccion('crearEntradaXML', 'Verificando carpeta ENTRADA XML...')">📁 Verificar Entrada XML</button>
+        <button onclick="subirYProcesarXML()">⬆️ Subir y Procesar Retenciones XML</button>
+        <button class="secondary" onclick="ejecutarAccion('procesarEntradaXML', 'Procesando XML ya existentes en Drive...')">📥 Procesar XML desde Entrada Drive</button>
       </div>
     </div>
   </section>
 
   <div class="note">
-    <b>Prueba recomendada:</b> coloca primero solo el XML que quedó pendiente en
-    <b>RETENCIONES / ENTRADA XML</b> y presiona <b>Procesar Retenciones XML</b>.
+    <b>Uso mensual:</b> selecciona el TXT o los XML desde esta pantalla y presiona el botón de subir/procesar.
+    Ya no necesitas entrar primero a Drive, salvo que quieras hacerlo manualmente.
   </div>
 
   <div id="links" class="links"></div>
@@ -173,7 +190,55 @@
     }
   }
 
+  async function subirYProcesarTXT() {
+    const input = document.getElementById("txtFiles");
+    if (!input.files || input.files.length === 0) {
+      alert("Selecciona un archivo TXT primero.");
+      return;
+    }
+
+    const archivos = await filesToBase64(input.files);
+    await ejecutarPayload("subirYProcesarTXT", archivos, "Subiendo y procesando TXT...");
+  }
+
+  async function subirYProcesarXML() {
+    const input = document.getElementById("xmlFiles");
+    if (!input.files || input.files.length === 0) {
+      alert("Selecciona uno o varios XML primero.");
+      return;
+    }
+
+    const archivos = await filesToBase64(input.files);
+    await ejecutarPayload("subirYProcesarXML", archivos, "Subiendo y procesando XML...");
+  }
+
+  function filesToBase64(fileList) {
+    const files = Array.from(fileList);
+    return Promise.all(files.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const base64 = result.split(",")[1] || "";
+        resolve({
+          nombre: file.name,
+          mimeType: file.type || "application/octet-stream",
+          contenidoBase64: base64
+        });
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    })));
+  }
+
+  async function ejecutarPayload(accion, archivos, mensaje) {
+    return ejecutarRequest({ accion, archivos }, mensaje);
+  }
+
   async function ejecutarAccion(accion, mensaje) {
+    return ejecutarRequest({ accion }, mensaje);
+  }
+
+  async function ejecutarRequest(payload, mensaje) {
     const botones = document.querySelectorAll("button");
     botones.forEach(b => b.disabled = true);
     limpiarLinks();
@@ -184,7 +249,7 @@
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ accion })
+        body: JSON.stringify(payload)
       });
 
       const texto = await res.text();
