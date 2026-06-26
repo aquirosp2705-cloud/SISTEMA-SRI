@@ -8,12 +8,14 @@
     :root {
       --bg: #f4f7fb;
       --card: #ffffff;
-      --primary: #264b73;
-      --primary2: #376fa8;
+      --primary: #14253d;
+      --primary2: #264b73;
       --accent: #6d8fc7;
       --text: #1f2937;
       --muted: #6b7280;
       --line: #dbe4f0;
+      --ok: #16805b;
+      --warn: #9a5b00;
     }
     * { box-sizing: border-box; }
     body {
@@ -25,14 +27,14 @@
     header {
       background: linear-gradient(135deg, var(--primary), var(--primary2));
       color: white;
-      padding: 24px 18px;
+      padding: 26px 18px;
       text-align: center;
       box-shadow: 0 3px 14px rgba(0,0,0,.16);
     }
     header h1 { margin: 0; font-size: 30px; letter-spacing: .8px; }
     .developer { margin-top: 12px; line-height: 1.55; font-size: 15px; font-weight: 600; }
     .rights { font-size: 13px; opacity: .95; margin-top: 4px; }
-    main { width: min(1150px, 94vw); margin: 24px auto 40px; }
+    main { width: min(1180px, 94vw); margin: 24px auto 40px; }
     .status { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
     .pill {
       background: var(--card);
@@ -43,7 +45,7 @@
     }
     .pill strong { display:block; font-size: 14px; color: var(--muted); margin-bottom: 5px; }
     .pill span { font-size: 18px; color: var(--primary); font-weight: 700; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; }
     .card {
       background: var(--card);
       border: 1px solid var(--line);
@@ -53,17 +55,21 @@
     }
     .card h2 { margin: 0 0 8px; color: var(--primary); font-size: 24px; }
     .card p { margin: 0 0 18px; color: var(--muted); line-height: 1.45; }
-    .inputbox {
+    .drop {
       border: 2px dashed #b9c8dd;
-      border-radius: 16px;
-      padding: 14px;
+      border-radius: 18px;
+      padding: 20px;
       background: #f8fbff;
       margin-bottom: 12px;
+      text-align: center;
+      transition: .2s ease;
     }
-    input[type="file"] {
-      width: 100%;
-      font-size: 15px;
+    .drop.dragover {
+      background: #e8f1ff;
+      border-color: var(--primary2);
     }
+    input[type="file"] { width: 100%; font-size: 15px; margin-top: 8px; }
+    .small { color: var(--muted); font-size: 13px; margin-top: 8px; }
     .button-row { display: grid; gap: 12px; }
     button {
       width: 100%;
@@ -85,7 +91,7 @@
       color: #e5e7eb;
       border-radius: 20px;
       padding: 18px;
-      min-height: 180px;
+      min-height: 210px;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       font-family: Consolas, Monaco, monospace;
@@ -113,6 +119,20 @@
       line-height: 1.45;
       font-size: 14px;
     }
+    .summary {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .sumitem {
+      background:#f8fbff;
+      border:1px solid var(--line);
+      border-radius: 14px;
+      padding:12px;
+      font-weight:700;
+      color:var(--primary);
+    }
     footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
   </style>
 </head>
@@ -130,28 +150,32 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>5.4</span></div>
-    <div class="pill"><strong>Modo de trabajo</strong><span>Subir y procesar</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>6.0</span></div>
+    <div class="pill"><strong>Modo de trabajo</strong><span>Subida múltiple</span></div>
   </section>
 
   <section class="grid">
     <div class="card">
       <h2>📄 Compras TXT</h2>
-      <p>Selecciona el TXT del SRI y presiona subir/procesar. El sistema lo guarda, detecta mes/año, mueve el archivo, genera mensual y acumulado.</p>
-      <div class="inputbox">
-        <input id="txtFiles" type="file" accept=".txt,text/plain" />
+      <p>Selecciona o arrastra uno o varios TXT. El sistema los sube, detecta mes/año, crea carpetas, genera mensual y acumulado.</p>
+      <div id="dropTXT" class="drop">
+        <b>Arrastra TXT aquí</b><br>
+        <input id="txtFiles" type="file" accept=".txt,text/plain" multiple />
+        <div id="txtInfo" class="small">Ningún TXT seleccionado</div>
       </div>
       <div class="button-row">
         <button onclick="subirYProcesarTXT()">⬆️ Subir y Procesar Compras TXT</button>
-        <button class="secondary" onclick="ejecutarAccion('procesarEntradaTXT', 'Procesando TXT ya existente en Drive...')">📥 Procesar TXT desde Entrada Drive</button>
+        <button class="secondary" onclick="ejecutarAccion('procesarEntradaTXT', 'Procesando TXT ya existentes en Drive...')">📥 Procesar TXT desde Entrada Drive</button>
       </div>
     </div>
 
     <div class="card">
       <h2>🧾 Retenciones XML</h2>
-      <p>Selecciona uno o varios XML. El sistema los guarda, lee formato 2.0.0 y 1.0.0, genera mensual, acumulado y resumen.</p>
-      <div class="inputbox">
+      <p>Selecciona o arrastra uno o varios XML. Lee formato 2.0.0 y 1.0.0, genera mensual, acumulado y resumen por código.</p>
+      <div id="dropXML" class="drop">
+        <b>Arrastra XML aquí</b><br>
         <input id="xmlFiles" type="file" accept=".xml,text/xml,application/xml" multiple />
+        <div id="xmlInfo" class="small">Ningún XML seleccionado</div>
       </div>
       <div class="button-row">
         <button onclick="subirYProcesarXML()">⬆️ Subir y Procesar Retenciones XML</button>
@@ -161,10 +185,10 @@
   </section>
 
   <div class="note">
-    <b>Uso mensual:</b> selecciona el TXT o los XML desde esta pantalla y presiona el botón de subir/procesar.
-    Ya no necesitas entrar primero a Drive, salvo que quieras hacerlo manualmente.
+    <b>Uso recomendado:</b> selecciona todos los TXT o XML del mes y presiona el botón de subir/procesar. También puedes mezclar meses; el sistema los separa por año y mes.
   </div>
 
+  <div id="resumen" class="summary"></div>
   <div id="links" class="links"></div>
   <pre id="consola" class="console">Listo para procesar.\nURL Apps Script:\nhttps://script.google.com/macros/s/AKfycbyM2kbnQ502NjukqhD9Ixzya-sW_imYJ-2mNXcyBqOsor7VlXTgPBSLXkGOaf7eu08FBA/exec</pre>
 </main>
@@ -175,7 +199,52 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyM2kbnQ502NjukqhD9Ixzya-sW_imYJ-2mNXcyBqOsor7VlXTgPBSLXkGOaf7eu08FBA/exec";
-  window.addEventListener("load", verificarScript);
+
+  window.addEventListener("load", () => {
+    verificarScript();
+    prepararDragDrop("dropTXT", "txtFiles", "txtInfo", ".txt");
+    prepararDragDrop("dropXML", "xmlFiles", "xmlInfo", ".xml");
+    document.getElementById("txtFiles").addEventListener("change", () => actualizarInfo("txtFiles","txtInfo","TXT"));
+    document.getElementById("xmlFiles").addEventListener("change", () => actualizarInfo("xmlFiles","xmlInfo","XML"));
+  });
+
+  function prepararDragDrop(dropId, inputId, infoId, extension) {
+    const drop = document.getElementById(dropId);
+    const input = document.getElementById(inputId);
+
+    ["dragenter","dragover"].forEach(ev => {
+      drop.addEventListener(ev, e => {
+        e.preventDefault();
+        drop.classList.add("dragover");
+      });
+    });
+
+    ["dragleave","drop"].forEach(ev => {
+      drop.addEventListener(ev, e => {
+        e.preventDefault();
+        drop.classList.remove("dragover");
+      });
+    });
+
+    drop.addEventListener("drop", e => {
+      const files = Array.from(e.dataTransfer.files || []);
+      const filtrados = files.filter(f => f.name.toLowerCase().endsWith(extension));
+      const dt = new DataTransfer();
+      filtrados.forEach(f => dt.items.add(f));
+      input.files = dt.files;
+      actualizarInfo(inputId, infoId, extension.replace(".","").toUpperCase());
+    });
+  }
+
+  function actualizarInfo(inputId, infoId, tipo) {
+    const files = document.getElementById(inputId).files;
+    const info = document.getElementById(infoId);
+    if (!files || files.length === 0) {
+      info.textContent = "Ningún " + tipo + " seleccionado";
+      return;
+    }
+    info.textContent = files.length + " archivo(s): " + Array.from(files).map(f => f.name).join(", ");
+  }
 
   async function verificarScript() {
     const estado = document.getElementById("estadoScript");
@@ -193,12 +262,12 @@
   async function subirYProcesarTXT() {
     const input = document.getElementById("txtFiles");
     if (!input.files || input.files.length === 0) {
-      alert("Selecciona un archivo TXT primero.");
+      alert("Selecciona uno o varios TXT primero.");
       return;
     }
 
     const archivos = await filesToBase64(input.files);
-    await ejecutarPayload("subirYProcesarTXT", archivos, "Subiendo y procesando TXT...");
+    await ejecutarRequest({ accion: "subirYProcesarTXT", archivos }, "Subiendo y procesando TXT...");
   }
 
   async function subirYProcesarXML() {
@@ -209,7 +278,7 @@
     }
 
     const archivos = await filesToBase64(input.files);
-    await ejecutarPayload("subirYProcesarXML", archivos, "Subiendo y procesando XML...");
+    await ejecutarRequest({ accion: "subirYProcesarXML", archivos }, "Subiendo y procesando XML...");
   }
 
   function filesToBase64(fileList) {
@@ -230,10 +299,6 @@
     })));
   }
 
-  async function ejecutarPayload(accion, archivos, mensaje) {
-    return ejecutarRequest({ accion, archivos }, mensaje);
-  }
-
   async function ejecutarAccion(accion, mensaje) {
     return ejecutarRequest({ accion }, mensaje);
   }
@@ -241,7 +306,7 @@
   async function ejecutarRequest(payload, mensaje) {
     const botones = document.querySelectorAll("button");
     botones.forEach(b => b.disabled = true);
-    limpiarLinks();
+    limpiarSalida();
     log(mensaje);
 
     try {
@@ -259,8 +324,12 @@
 
       log(JSON.stringify(data, null, 2));
 
-      if (data.ok) mostrarLinks(data);
-      else alert("Error: " + (data.mensaje || "Proceso no completado"));
+      if (data.ok) {
+        mostrarResumen(data);
+        mostrarLinks(data);
+      } else {
+        alert("Error: " + (data.mensaje || "Proceso no completado"));
+      }
 
     } catch (err) {
       log("ERROR:\n" + err.message);
@@ -268,6 +337,25 @@
     } finally {
       botones.forEach(b => b.disabled = false);
     }
+  }
+
+  function mostrarResumen(data) {
+    const cont = document.getElementById("resumen");
+    const items = [];
+
+    if (Array.isArray(data.subidos)) items.push(["Archivos subidos", data.subidos.length]);
+
+    if (Array.isArray(data.procesados)) {
+      const totalArchivos = data.procesados.reduce((a,p) => a + Number(p.archivos || 0), 0);
+      const totalRegistros = data.procesados.reduce((a,p) => a + Number(p.registros || 0), 0);
+      items.push(["Grupos procesados", data.procesados.length]);
+      items.push(["Archivos procesados", totalArchivos]);
+      items.push(["Registros", totalRegistros]);
+    }
+
+    if (Array.isArray(data.omitidos)) items.push(["Omitidos", data.omitidos.length]);
+
+    cont.innerHTML = items.map(x => `<div class="sumitem">${x[0]}<br><span>${x[1]}</span></div>`).join("");
   }
 
   function mostrarLinks(data) {
@@ -284,8 +372,9 @@
     cont.innerHTML = items.map(x => `<a href="${x.href}" target="_blank" rel="noopener">${x.text}</a>`).join("");
   }
 
-  function limpiarLinks() {
+  function limpiarSalida() {
     document.getElementById("links").innerHTML = "";
+    document.getElementById("resumen").innerHTML = "";
   }
 
   function log(txt) {
