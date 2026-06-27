@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -407,6 +408,14 @@
       transition: transform .15s ease;
     }
     .toggle-card.open .toggle-icon { transform: rotate(90deg); }
+
+
+    .total-row th,
+    .total-row td {
+      background: #fff2cc !important;
+      font-weight: 900 !important;
+      color: var(--primary);
+    }
 
     footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
   </style>
@@ -2141,6 +2150,16 @@ function renderResumenProveedor(compras, rets) {
 }
 
 function renderComprasProveedor(items) {
+  const total = items.reduce((a, x) => {
+    a.comprobantes += Number(x.comprobantes || 0);
+    a.valorSinImpuestos += Number(x.valorSinImpuestos || 0);
+    a.baseIVA += Number(x.baseIVA || 0);
+    a.baseSinIVA += Number(x.baseSinIVA || 0);
+    a.iva += Number(x.iva || 0);
+    a.total += Number(x.total || 0);
+    return a;
+  }, { comprobantes: 0, valorSinImpuestos: 0, baseIVA: 0, baseSinIVA: 0, iva: 0, total: 0 });
+
   return `
     <div class="toggle-card" id="toggleComprasProveedor">
       <div class="toggle-head" onclick="toggleProveedor('toggleComprasProveedor')">
@@ -2165,6 +2184,16 @@ function renderComprasProveedor(items) {
                 <td>$ ${fmtDash_CORREGIDO(x.total)}</td>
               </tr>
             `).join("")}
+            <tr class="total-row">
+              <th>TOTAL PROVEEDORES</th>
+              <th></th>
+              <th>${total.comprobantes || 0}</th>
+              <th>$ ${fmtDash_CORREGIDO(total.valorSinImpuestos)}</th>
+              <th>$ ${fmtDash_CORREGIDO(total.baseIVA)}</th>
+              <th>$ ${fmtDash_CORREGIDO(total.baseSinIVA)}</th>
+              <th>$ ${fmtDash_CORREGIDO(total.iva)}</th>
+              <th>$ ${fmtDash_CORREGIDO(total.total)}</th>
+            </tr>
           </table>
         </div>
       </div>
@@ -2172,6 +2201,22 @@ function renderComprasProveedor(items) {
 }
 
 function renderRetencionesProveedor(items, grupos) {
+  const total = items.reduce((a, x) => {
+    a.archivos += Number(x.archivos || 0);
+    a.lineas += Number(x.lineas || 0);
+    a.baseRetenida += Number(x.baseRetenida || 0);
+    a.totalRetenido += Number(x.totalRetenido || 0);
+
+    grupos.forEach(g => {
+      if (!a.grupos[g.key]) a.grupos[g.key] = { base: 0, retenido: 0 };
+      const item = (x.grupos || {})[g.key] || { base: 0, retenido: 0 };
+      a.grupos[g.key].base += Number(item.base || 0);
+      a.grupos[g.key].retenido += Number(item.retenido || 0);
+    });
+
+    return a;
+  }, { archivos: 0, lineas: 0, baseRetenida: 0, totalRetenido: 0, grupos: {} });
+
   return `
     <div class="toggle-card" id="toggleRetencionesProveedor">
       <div class="toggle-head" onclick="toggleProveedor('toggleRetencionesProveedor')">
@@ -2200,6 +2245,18 @@ function renderRetencionesProveedor(items, grupos) {
                 <td>$ ${fmtDash_CORREGIDO(x.totalRetenido)}</td>
               </tr>
             `).join("")}
+            <tr class="total-row">
+              <th>TOTAL PROVEEDORES</th>
+              <th></th>
+              <th>${total.archivos || 0}</th>
+              <th>${total.lineas || 0}</th>
+              ${grupos.map(g => {
+                const item = total.grupos[g.key] || { base: 0, retenido: 0 };
+                return `<th>$ ${fmtDash_CORREGIDO(item.base)}</th><th>$ ${fmtDash_CORREGIDO(item.retenido)}</th>`;
+              }).join("")}
+              <th>$ ${fmtDash_CORREGIDO(total.baseRetenida)}</th>
+              <th>$ ${fmtDash_CORREGIDO(total.totalRetenido)}</th>
+            </tr>
           </table>
         </div>
       </div>
@@ -2272,8 +2329,111 @@ if (typeof window.exportarDashboardExcel === "function") {
 }
 </script>
 
+
+<script>
+/* ==========================================================
+   TOTALES EN EXPORTACIÓN POR PROVEEDOR
+   ========================================================== */
+if (typeof window.exportarDashboardExcel === "function") {
+  const __exportProveedorTotales = window.exportarDashboardExcel;
+
+  window.exportarDashboardExcel = function() {
+    const data = window.__dashboardTributarioData;
+    if (!data) {
+      alert("Primero carga los Excel acumulados y genera el dashboard.");
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    const resumenEjecutivo = [
+      ["Indicador", "Valor"],
+      ["Comprobantes compras", data.acumuladoCompras.Comprobantes],
+      ["Valor sin impuestos", data.acumuladoCompras.Valor_sin_impuestos],
+      ["Base IVA", data.acumuladoCompras.Base_IVA],
+      ["Base sin IVA", data.acumuladoCompras.Base_sin_IVA],
+      ["IVA compras", data.acumuladoCompras.IVA],
+      ["Total compras", data.acumuladoCompras.Total_compras],
+      ["XML retenciones", data.acumuladoRetenciones.XML],
+      ["Líneas retenciones", data.acumuladoRetenciones.Lineas],
+      ["Base retenida", data.acumuladoRetenciones.Base_retenida],
+      ["Total retenido", data.acumuladoRetenciones.Total_retenido]
+    ];
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenEjecutivo), "Resumen Ejecutivo");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mensualCompras), "Compras por Mes");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mensualRetenciones), "Retenciones por Mes");
+
+    const comprasProv = (data.compras.proveedores || []).map(x => ({
+      Proveedor: x.proveedor,
+      RUC: x.ruc,
+      Comprobantes: x.comprobantes,
+      Valor_sin_impuestos: x.valorSinImpuestos,
+      Base_IVA: x.baseIVA,
+      Base_sin_IVA: x.baseSinIVA,
+      IVA: x.iva,
+      Total_compras: x.total
+    }));
+
+    const totalCompras = comprasProv.reduce((a, x) => {
+      a.Comprobantes += Number(x.Comprobantes || 0);
+      a.Valor_sin_impuestos += Number(x.Valor_sin_impuestos || 0);
+      a.Base_IVA += Number(x.Base_IVA || 0);
+      a.Base_sin_IVA += Number(x.Base_sin_IVA || 0);
+      a.IVA += Number(x.IVA || 0);
+      a.Total_compras += Number(x.Total_compras || 0);
+      return a;
+    }, { Proveedor: "TOTAL PROVEEDORES", RUC: "", Comprobantes: 0, Valor_sin_impuestos: 0, Base_IVA: 0, Base_sin_IVA: 0, IVA: 0, Total_compras: 0 });
+
+    comprasProv.push(totalCompras);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(comprasProv), "Compras Proveedor");
+
+    const retObj = data.rets.proveedores || { proveedores: [], grupos: [] };
+    const retProv = (retObj.proveedores || []).map(x => {
+      const row = {
+        Proveedor: x.proveedor,
+        RUC: x.ruc,
+        XML: x.archivos,
+        Lineas: x.lineas
+      };
+
+      (retObj.grupos || []).forEach(g => {
+        const item = (x.grupos || {})[g.key] || { base: 0, retenido: 0 };
+        row["Base " + g.etiqueta] = item.base;
+        row["Retenido " + g.etiqueta] = item.retenido;
+      });
+
+      row.Total_base = x.baseRetenida;
+      row.Total_retenido = x.totalRetenido;
+      return row;
+    });
+
+    const totalRet = retProv.reduce((a, x) => {
+      a.XML += Number(x.XML || 0);
+      a.Lineas += Number(x.Lineas || 0);
+
+      (retObj.grupos || []).forEach(g => {
+        a["Base " + g.etiqueta] = Number(a["Base " + g.etiqueta] || 0) + Number(x["Base " + g.etiqueta] || 0);
+        a["Retenido " + g.etiqueta] = Number(a["Retenido " + g.etiqueta] || 0) + Number(x["Retenido " + g.etiqueta] || 0);
+      });
+
+      a.Total_base += Number(x.Total_base || 0);
+      a.Total_retenido += Number(x.Total_retenido || 0);
+      return a;
+    }, { Proveedor: "TOTAL PROVEEDORES", RUC: "", XML: 0, Lineas: 0, Total_base: 0, Total_retenido: 0 });
+
+    retProv.push(totalRet);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(retProv), "Retenciones Proveedor");
+
+    const anio = document.getElementById("dashAnio") ? document.getElementById("dashAnio").value : "2026";
+    XLSX.writeFile(wb, "Dashboard_Tributario_" + anio + ".xlsx");
+  };
+}
+</script>
+
 </body>
 </html>
+
 
 
 
