@@ -6,6 +6,7 @@
   <title>SRI Control Documental</title>
   <style>
     :root {
+      --bg: #f4f7fb;
       --card: #ffffff;
       --primary: #14253d;
       --primary2: #264b73;
@@ -14,8 +15,6 @@
       --muted: #6b7280;
       --line: #dbe4f0;
       --danger: #9f1239;
-      --ok: #127a4d;
-      --soft: #f8fbff;
     }
     * { box-sizing: border-box; }
     body {
@@ -34,7 +33,7 @@
     header h1 { margin: 0; font-size: 30px; letter-spacing: .8px; }
     .developer { margin-top: 12px; line-height: 1.55; font-size: 15px; font-weight: 600; }
     .rights { font-size: 13px; opacity: .95; margin-top: 4px; }
-    main { width: min(1220px, 94vw); margin: 24px auto 40px; }
+    main { width: min(1180px, 94vw); margin: 24px auto 40px; }
     .status { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
     .pill {
       background: var(--card);
@@ -52,7 +51,6 @@
       border-radius: 22px;
       padding: 22px;
       box-shadow: 0 8px 22px rgba(31, 41, 55, .08);
-      margin-bottom: 18px;
     }
     .card h2 { margin: 0 0 8px; color: var(--primary); font-size: 24px; }
     .card p { margin: 0 0 18px; color: var(--muted); line-height: 1.45; }
@@ -60,21 +58,13 @@
       border: 2px dashed #b9c8dd;
       border-radius: 18px;
       padding: 20px;
-      background: var(--soft);
+      background: #f8fbff;
       margin-bottom: 12px;
       text-align: center;
       transition: .2s ease;
     }
     .drop.dragover { background: #e8f1ff; border-color: var(--primary2); }
-    input[type="file"], select, input[type="number"] {
-      width: 100%;
-      font-size: 15px;
-      margin-top: 8px;
-      padding: 10px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: white;
-    }
+    input[type="file"] { width: 100%; font-size: 15px; margin-top: 8px; }
     .small { color: var(--muted); font-size: 13px; margin-top: 8px; }
     .filelist {
       margin-top: 12px;
@@ -107,14 +97,13 @@
       box-shadow: none;
     }
     .button-row { display: grid; gap: 12px; }
-    .three { grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); }
     button {
       width: 100%;
       border: 0;
       border-radius: 16px;
       padding: 16px 18px;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
       color: white;
       background: linear-gradient(135deg, var(--primary2), var(--accent));
@@ -163,30 +152,13 @@
       gap: 10px;
     }
     .sumitem {
-      background: var(--soft);
+      background:#f8fbff;
       border:1px solid var(--line);
       border-radius: 14px;
       padding:12px;
       font-weight:700;
       color:var(--primary);
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-      background: white;
-      border-radius: 14px;
-      overflow: hidden;
-    }
-    th, td {
-      border: 1px solid var(--line);
-      padding: 9px;
-      font-size: 13px;
-      text-align: left;
-    }
-    th { background: #eaf1fb; color: var(--primary); }
-    .ok { color: var(--ok); font-weight: 700; }
-    .empty { color: var(--muted); }
     footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
   </style>
 </head>
@@ -204,23 +176,8 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>10.0</span></div>
-    <div class="pill"><strong>Modo de trabajo</strong><span>Control anual</span></div>
-  </section>
-
-  <section class="card">
-    <h2>📌 Dashboard de Control</h2>
-    <p>Resumen rápido del año seleccionado, incluyendo importados y duplicados rechazados.</p>
-    <div class="grid">
-      <div>
-        <label>Año</label>
-        <input id="anioDashboard" type="number" value="2026" min="2020" max="2035">
-      </div>
-      <div style="display:flex;align-items:end;">
-        <button onclick="cargarDashboard()">📌 Cargar Dashboard</button>
-      </div>
-    </div>
-    <div id="dashboardPanel" class="summary"></div>
+    <div class="pill"><strong>Versión esperada</strong><span>6.1</span></div>
+    <div class="pill"><strong>Modo de trabajo</strong><span>Subida múltiple</span></div>
   </section>
 
   <section class="grid">
@@ -242,7 +199,7 @@
 
     <div class="card">
       <h2>🧾 Retenciones XML</h2>
-      <p>Selecciona o arrastra uno o varios XML. El resumen incluye el nombre del emisor de la retención.</p>
+      <p>Selecciona o arrastra uno o varios XML. El sistema lee formato 2.0.0 y 1.0.0.</p>
       <div id="dropXML" class="drop">
         <b>Arrastra XML aquí</b><br>
         <input id="xmlFiles" type="file" accept=".xml,text/xml,application/xml" multiple />
@@ -257,107 +214,8 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>🔄 Reprocesar Mes</h2>
-    <p>Usa esta opción si agregaste archivos a una carpeta mensual y quieres regenerar el Excel mensual y el acumulado.</p>
-    <div class="grid">
-      <div>
-        <label>Año</label>
-        <input id="anioRep" type="number" value="2026" min="2020" max="2035">
-      </div>
-      <div>
-        <label>Mes</label>
-        <select id="mesRep">
-          <option value="01">01 ENERO</option>
-          <option value="02">02 FEBRERO</option>
-          <option value="03">03 MARZO</option>
-          <option value="04">04 ABRIL</option>
-          <option value="05">05 MAYO</option>
-          <option value="06">06 JUNIO</option>
-          <option value="07">07 JULIO</option>
-          <option value="08">08 AGOSTO</option>
-          <option value="09">09 SEPTIEMBRE</option>
-          <option value="10">10 OCTUBRE</option>
-          <option value="11">11 NOVIEMBRE</option>
-          <option value="12">12 DICIEMBRE</option>
-        </select>
-      </div>
-    </div>
-    <div class="button-row three" style="margin-top:14px;">
-      <button onclick="reprocesar('reprocesarComprasMes')">📄 Reprocesar Compras</button>
-      <button onclick="reprocesar('reprocesarRetencionesMes')">🧾 Reprocesar Retenciones</button>
-      <button onclick="reprocesar('reprocesarAmbosMes')">🔄 Reprocesar Ambos</button>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>📂 Descargas de Excel</h2>
-    <p>Elige exactamente qué Excel quieres descargar. No se descargan TXT ni XML; esos quedan como respaldo en Drive.</p>
-
-    <div class="grid">
-      <div>
-        <label>Año</label>
-        <input id="anioDescarga" type="number" value="2026" min="2020" max="2035">
-      </div>
-
-      <div>
-        <label>Tipo</label>
-        <select id="tipoDescarga">
-          <option value="compras">Compras</option>
-        </select>
-      </div>
-
-      <div>
-        <label>Archivo</label>
-        <select id="modoDescarga" onchange="actualizarMesDescarga()">
-          <option value="mensual">Mensual</option>
-          <option value="acumulado">Acumulado anual</option>
-        </select>
-      </div>
-
-      <div id="bloqueMesDescarga">
-        <label>Mes</label>
-        <select id="mesDescarga">
-          <option value="01">01 ENERO</option>
-          <option value="02">02 FEBRERO</option>
-          <option value="03">03 MARZO</option>
-          <option value="04">04 ABRIL</option>
-          <option value="05">05 MAYO</option>
-          <option value="06">06 JUNIO</option>
-          <option value="07">07 JULIO</option>
-          <option value="08">08 AGOSTO</option>
-          <option value="09">09 SEPTIEMBRE</option>
-          <option value="10">10 OCTUBRE</option>
-          <option value="11">11 NOVIEMBRE</option>
-          <option value="12">12 DICIEMBRE</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="button-row three" style="margin-top:14px;">
-      <button onclick="buscarExcelSeleccionado()">🔍 Buscar Excel</button>
-    </div>
-
-    <div id="descargasExcel" class="links"></div>
-  </section>
-
-    <section class="card">
-    <h2>📅 Panel Anual</h2>
-    <p>Consulta el estado de cada mes: archivos, comprobantes, retenciones y enlaces rápidos.</p>
-    <div class="grid">
-      <div>
-        <label>Año</label>
-        <input id="anioEstado" type="number" value="2026" min="2020" max="2035">
-      </div>
-      <div style="display:flex;align-items:end;">
-        <button onclick="cargarEstadoAnual()">📊 Cargar Estado Anual</button>
-      </div>
-    </div>
-    <div id="estadoAnualTabla"></div>
-  </section>
-
   <div class="note">
-    <b>Nuevo en v10.0:</b> retenciones rehechas: cada XML se lee en un solo formato para evitar duplicación de líneas. Compras conserva control de duplicados.
+    <b>Nuevo:</b> Compras permite acumular varios TXT seleccionándolos una o varias veces. El Excel de compras genera resumen con número de comprobantes y totales.
   </div>
 
   <div id="resumen" class="summary"></div>
@@ -376,8 +234,6 @@
 
   window.addEventListener("load", () => {
     verificarScript();
-    actualizarMesDescarga();
-    actualizarMesDuplicados();
     prepararDragDrop("dropTXT", ".txt", "txt");
     prepararDragDrop("dropXML", ".xml", "xml");
 
@@ -509,194 +365,6 @@
     })));
   }
 
-  function reprocesar(accion) {
-    const anio = document.getElementById("anioRep").value;
-    const mes = document.getElementById("mesRep").value;
-    ejecutarRequest({ accion, anio, mes }, "Reprocesando...");
-  }
-
-  function actualizarMesDescarga() {
-    const modo = document.getElementById("modoDescarga").value;
-    document.getElementById("bloqueMesDescarga").style.display = modo === "mensual" ? "block" : "none";
-  }
-
-  function actualizarMesDuplicados() {
-    const modo = document.getElementById("modoDup").value;
-    document.getElementById("bloqueMesDup").style.display = modo === "mensual" ? "block" : "none";
-  }
-
-  function cargarDashboard() {
-    const anio = document.getElementById("anioDashboard").value;
-    ejecutarRequest({ accion: "dashboardControl", anio }, "Cargando dashboard...");
-  }
-
-  function renderDashboard(data) {
-    if (!data.dashboard) return;
-
-    const d = data.dashboard;
-    const cont = document.getElementById("dashboardPanel");
-
-    cont.innerHTML = `
-      <div class="sumitem">Compras importadas<br><span>${d.comprasImportadas || 0}</span></div>
-      <div class="sumitem">Duplicados compras<br><span>${d.duplicadosCompras || 0}</span></div>
-      <div class="sumitem">Total compras<br><span>${formatMoney(d.totalCompras || 0)}</span></div>
-      <div class="sumitem">Retenciones importadas<br><span>${d.retencionesImportadas || 0}</span></div>
-      <div class="sumitem">Duplicados retenciones<br><span>${d.duplicadosRetenciones || 0}</span></div>
-      <div class="sumitem">Total retenido<br><span>${formatMoney(d.totalRetenido || 0)}</span></div>
-    `;
-  }
-
-  function buscarExcelSeleccionado() {
-    const anio = document.getElementById("anioDescarga").value;
-    const mes = document.getElementById("mesDescarga").value;
-    ejecutarRequest({ accion: "linksExcel", anio, mes, seleccion: true }, "Buscando Excel seleccionado...");
-  }
-
-  function renderLinksExcel(data) {
-    const cont = document.getElementById("descargasExcel");
-    if (!data.archivos) return;
-
-    const tipo = document.getElementById("tipoDescarga") ? document.getElementById("tipoDescarga").value : "";
-    const modo = document.getElementById("modoDescarga") ? document.getElementById("modoDescarga").value : "";
-
-    let titulo = "";
-    let obj = null;
-
-    if (tipo === "compras" && modo === "mensual") {
-      titulo = "Compras mensual";
-      obj = data.archivos.comprasMensual;
-    }
-
-    if (tipo === "compras" && modo === "acumulado") {
-      titulo = "Compras acumulado anual";
-      obj = data.archivos.comprasAcumulado;
-    }
-
-    if (tipo === "retenciones" && modo === "mensual") {
-      titulo = "Retenciones mensual";
-      obj = data.archivos.retencionesMensual;
-    }
-
-    if (tipo === "retenciones" && modo === "acumulado") {
-      titulo = "Retenciones acumulado anual";
-      obj = data.archivos.retencionesAcumulado;
-    }
-
-    if (!obj) {
-      cont.innerHTML = `<div class="sumitem">${titulo}<br><span>No encontrado</span></div>`;
-      return;
-    }
-
-    cont.innerHTML = `
-      <a href="${obj.xlsx}" target="_blank" rel="noopener">⬇️ Descargar ${titulo} (.xlsx)</a>
-      <a href="${obj.url}" target="_blank" rel="noopener">📊 Abrir ${titulo} en Google Sheets</a>
-    `;
-  }
-
-  function buscarDuplicadoSeleccionado() {
-    const anio = document.getElementById("anioDup").value;
-    const mes = document.getElementById("mesDup").value;
-    const tipo = document.getElementById("tipoDup").value;
-    const modo = document.getElementById("modoDup").value;
-    ejecutarRequest({ accion: "detalleDuplicados", anio, mes, tipo, modo }, "Cargando duplicados en pantalla...");
-  }
-
-  function renderDuplicados(data) {
-    const panel = document.getElementById("duplicadosPanel");
-    const tabla = document.getElementById("duplicadosTabla");
-    if (!data || data.filas === undefined) return;
-
-    const total = Number(data.total || 0);
-    const archivo = data.archivo || {};
-
-    if (total === 0) {
-      panel.innerHTML = `
-        <div class="dupgrid">
-          <div class="dupcard">
-            <h3>Resultado</h3>
-            <div class="count zero">0</div>
-            <div class="small">Sin duplicados rechazados</div>
-            ${archivo.url ? `<a href="${archivo.url}" target="_blank" rel="noopener">📊 Abrir Excel</a>` : ''}
-          </div>
-        </div>
-      `;
-      tabla.innerHTML = "";
-      return;
-    }
-
-    panel.innerHTML = `
-      <div class="dupgrid">
-        <div class="dupcard">
-          <h3>Duplicados rechazados</h3>
-          <div class="count">${total}</div>
-          <div class="small">${archivo.nombreHoja || ''}</div>
-          ${archivo.url ? `<a href="${archivo.url}" target="_blank" rel="noopener">⚠️ Ver hoja duplicados</a>` : ''}
-          ${archivo.xlsx ? `<a href="${archivo.xlsx}" target="_blank" rel="noopener">⬇️ Descargar Excel (.xlsx)</a>` : ''}
-        </div>
-      </div>
-    `;
-
-    renderTablaDuplicados(data.filas, data.tipo);
-  }
-
-  function renderTablaDuplicados(filas, tipo) {
-    const tabla = document.getElementById("duplicadosTabla");
-    const qNombre = (document.getElementById("buscarDupNombre").value || "").toLowerCase();
-    const qDoc = (document.getElementById("buscarDupDoc").value || "").toLowerCase();
-
-    const filtradas = filas.filter(r => {
-      const nombre = tipo === "compras"
-        ? String(r["PROVEEDOR"] || "").toLowerCase()
-        : String(r["EMISOR RETENCION"] || "").toLowerCase();
-
-      const doc = [
-        r["DOCUMENTO"],
-        r["CLAVE ACCESO"],
-        r["NUM RETENCION"],
-        r["CODIGO RETENCION"]
-      ].map(x => String(x || "").toLowerCase()).join(" ");
-
-      return (!qNombre || nombre.includes(qNombre)) && (!qDoc || doc.includes(qDoc));
-    });
-
-    if (filtradas.length === 0) {
-      tabla.innerHTML = `<div class="note">No hay registros con ese filtro.</div>`;
-      return;
-    }
-
-    let headers;
-    if (tipo === "compras") {
-      headers = ["ESTADO", "MOTIVO", "FECHA EMISION", "RUC PROVEEDOR", "PROVEEDOR", "DOCUMENTO", "CLAVE ACCESO", "TOTAL"];
-    } else {
-      headers = ["ESTADO", "MOTIVO", "FECHA RETENCION", "RUC EMISOR", "EMISOR RETENCION", "NUM RETENCION", "CLAVE ACCESO", "VALOR RETENIDO"];
-    }
-
-    const rows = filtradas.map(r => `
-      <tr>
-        ${headers.map(h => {
-          let val = r[h] ?? "";
-          if (h === "ESTADO") val = `<span class="badge-red">${val || "RECHAZADA"}</span>`;
-          if (["TOTAL", "VALOR RETENIDO"].includes(h)) val = formatMoney(val || 0);
-          return `<td>${val}</td>`;
-        }).join("")}
-      </tr>
-    `).join("");
-
-    tabla.innerHTML = `
-      <table>
-        <thead>
-          <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
-
-  function cargarEstadoAnual() {
-    const anio = document.getElementById("anioEstado").value;
-    ejecutarRequest({ accion: "estadoAnual", anio }, "Cargando estado anual...");
-  }
-
   async function ejecutarAccion(accion, mensaje) {
     return ejecutarRequest({ accion }, mensaje);
   }
@@ -725,11 +393,6 @@
       if (data.ok) {
         mostrarResumen(data);
         mostrarLinks(data);
-        if (data.meses) renderEstadoAnual(data);
-        if (data.archivos) renderLinksExcel(data);
-        if (data.duplicados) renderDuplicados(data);
-        if (data.dashboard) renderDashboard(data);
-        if (data.filas !== undefined) renderDuplicados(data);
       } else {
         alert("Error: " + (data.mensaje || "Proceso no completado"));
       }
@@ -740,48 +403,6 @@
     } finally {
       botones.forEach(b => b.disabled = false);
     }
-  }
-
-  function renderEstadoAnual(data) {
-    const cont = document.getElementById("estadoAnualTabla");
-
-    const rows = data.meses.map(m => `
-      <tr>
-        <td><b>${m.nombreMes}</b></td>
-        <td class="${m.compras.comprobantes ? 'ok' : 'empty'}">${m.compras.comprobantes || 0}</td>
-        <td>${formatMoney(m.compras.total || 0)}</td>
-        <td class="${m.retenciones.registros ? 'ok' : 'empty'}">${m.retenciones.registros || 0}</td>
-        <td>${formatMoney(m.retenciones.retenido || 0)}</td>
-        <td>
-          ${link(m.compras.mensual, 'Compras')}
-          ${link(m.retenciones.mensual, 'Retenciones')}
-        </td>
-      </tr>
-    `).join("");
-
-    cont.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Mes</th>
-            <th>Comprobantes</th>
-            <th>Total compras</th>
-            <th>Retenciones</th>
-            <th>Total retenido</th>
-            <th>Links</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
-
-  function link(url, text) {
-    return url ? `<a href="${url}" target="_blank" rel="noopener">${text}</a> ` : '';
-  }
-
-  function formatMoney(n) {
-    return Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function mostrarResumen(data) {
@@ -799,7 +420,6 @@
     }
 
     if (Array.isArray(data.omitidos)) items.push(["Omitidos", data.omitidos.length]);
-    if (Array.isArray(data.errores)) items.push(["Errores", data.errores.length]);
 
     cont.innerHTML = items.map(x => `<div class="sumitem">${x[0]}<br><span>${x[1]}</span></div>`).join("");
   }
@@ -821,8 +441,6 @@
   function limpiarSalida() {
     document.getElementById("links").innerHTML = "";
     document.getElementById("resumen").innerHTML = "";
-    const dup = document.getElementById("duplicadosPanel");
-    if (dup) dup.innerHTML = "";
   }
 
   function log(txt) {
