@@ -159,8 +159,110 @@
       font-weight:700;
       color:var(--primary);
     }
+
+    .dash-wrap {
+      margin-top: 18px;
+      background: linear-gradient(135deg, #ffffff, #f8fbff);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 8px 22px rgba(31, 41, 55, .08);
+    }
+    .dash-wrap h2 {
+      margin: 0 0 8px;
+      color: var(--primary);
+      font-size: 25px;
+    }
+    .dash-sub {
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .dash-field label {
+      display:block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .dash-field input, .dash-field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 11px;
+      font-size: 15px;
+      background:white;
+    }
+    .kpi-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+    }
+    .kpi-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 15px;
+      box-shadow: 0 4px 14px rgba(31, 41, 55, .05);
+    }
+    .kpi-card .lbl {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .kpi-card .val {
+      margin-top: 6px;
+      color: var(--primary);
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .dash-panels {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 14px;
+    }
+    .dash-table {
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+      background:white;
+      border-radius:14px;
+      overflow:hidden;
+    }
+    .dash-table th, .dash-table td {
+      border:1px solid var(--line);
+      padding:9px;
+      font-size:13px;
+      text-align:right;
+    }
+    .dash-table th:first-child, .dash-table td:first-child {
+      text-align:left;
+    }
+    .dash-table th {
+      background:#eaf1fb;
+      color:var(--primary);
+      font-weight:800;
+    }
+    .bar {
+      height: 12px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--primary2), var(--accent));
+      min-width: 2px;
+    }
+    .bar-ret {
+      background: linear-gradient(90deg, #87536b, #d8a1b1);
+    }
+
     footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <header>
@@ -176,7 +278,7 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>6.4</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>6.4 + Panel</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Subida múltiple</span></div>
   </section>
 
@@ -266,6 +368,55 @@
 
     <div id="linksExcel" class="links"></div>
   </section>
+
+
+  <section class="dash-wrap">
+    <h2>📊 Evolución Tributaria</h2>
+    <div class="dash-sub">
+      Panel visual sin modificar el Code.gs. Carga aquí los Excel ya generados de compras y retenciones para ver tus totales y evolución en pantalla.
+    </div>
+
+    <div class="dash-grid">
+      <div class="dash-field">
+        <label>Año</label>
+        <input id="dashAnio" type="number" value="2026" min="2020" max="2035">
+      </div>
+      <div class="dash-field">
+        <label>Mes</label>
+        <select id="dashMes">
+          <option value="01">01 ENERO</option>
+          <option value="02">02 FEBRERO</option>
+          <option value="03">03 MARZO</option>
+          <option value="04">04 ABRIL</option>
+          <option value="05">05 MAYO</option>
+          <option value="06">06 JUNIO</option>
+          <option value="07">07 JULIO</option>
+          <option value="08">08 AGOSTO</option>
+          <option value="09">09 SEPTIEMBRE</option>
+          <option value="10">10 OCTUBRE</option>
+          <option value="11">11 NOVIEMBRE</option>
+          <option value="12">12 DICIEMBRE</option>
+        </select>
+      </div>
+      <div class="dash-field">
+        <label>Excel compras mensual/acumulado</label>
+        <input id="excelComprasDash" type="file" accept=".xlsx,.xls,.csv">
+      </div>
+      <div class="dash-field">
+        <label>Excel retenciones mensual/acumulado</label>
+        <input id="excelRetencionesDash" type="file" accept=".xlsx,.xls,.csv">
+      </div>
+    </div>
+
+    <div class="button-row" style="margin-top:14px;">
+      <button onclick="leerEvolucionTributaria()">📈 Leer Excel y mostrar evolución</button>
+    </div>
+
+    <div id="kpisDash" class="kpi-grid"></div>
+    <div id="panelDash" class="dash-panels"></div>
+    <div id="tablaAnualDash"></div>
+  </section>
+
 
   <div class="note">
     <b>Nuevo:</b> Retenciones se genera con formato tipo Ret0126: detalle, valor calculado, estado, diferencia y resumen por porcentaje sin totalizar bases generales.
@@ -444,6 +595,313 @@
       <a href="${data.xlsx}" target="_blank" rel="noopener">⬇️ Descargar ${data.nombre} (.xlsx)</a>
       <a href="${data.url}" target="_blank" rel="noopener">📊 Abrir ${data.nombre} en Google Sheets</a>
     `;
+  }
+
+
+
+  async function leerEvolucionTributaria() {
+    const fCompras = document.getElementById("excelComprasDash").files[0];
+    const fRets = document.getElementById("excelRetencionesDash").files[0];
+
+    if (!fCompras && !fRets) {
+      alert("Selecciona al menos un Excel de compras o retenciones.");
+      return;
+    }
+
+    const compras = fCompras ? await leerExcelComprasDashboard(fCompras) : resumenComprasVacio();
+    const rets = fRets ? await leerExcelRetencionesDashboard(fRets) : resumenRetencionesVacio();
+
+    renderDashboardTributario(compras, rets);
+  }
+
+  function leerWorkbook(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: "array" });
+          resolve(wb);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function leerExcelComprasDashboard(file) {
+    const wb = await leerWorkbook(file);
+    const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("COMPRA")) || wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
+
+    let comprobantes = new Set();
+    let valorSinImpuestos = 0;
+    let baseIVA = 0;
+    let baseSinIVA = 0;
+    let iva = 0;
+    let total = 0;
+    let porMes = {};
+
+    rows.forEach(r => {
+      if (filaResumenOTotal(r)) return;
+
+      const doc = valorCampo(r, ["CLAVE ACCESO", "DOCUMENTO", "claveAcceso", "documento"]);
+      if (doc) comprobantes.add(String(doc));
+
+      const mes = obtenerMesFila(r);
+      if (!porMes[mes]) porMes[mes] = resumenComprasVacio();
+
+      const v = num(valorCampo(r, ["VALOR SIN IMPUESTOS", "valorSinImpuestos"]));
+      const bIva = num(valorCampo(r, ["BASE IVA", "baseIVA"]));
+      const b0 = num(valorCampo(r, ["BASE SIN IVA", "baseSinIVA", "BASE 0"]));
+      const iv = num(valorCampo(r, ["IVA", "iva"]));
+      const tot = num(valorCampo(r, ["TOTAL", "total", "IMPORTE TOTAL"]));
+
+      if (v === 0 && bIva === 0 && b0 === 0 && iv === 0 && tot === 0) return;
+
+      valorSinImpuestos += v;
+      baseIVA += bIva;
+      baseSinIVA += b0;
+      iva += iv;
+      total += tot;
+
+      porMes[mes].valorSinImpuestos += v;
+      porMes[mes].baseIVA += bIva;
+      porMes[mes].baseSinIVA += b0;
+      porMes[mes].iva += iv;
+      porMes[mes].total += tot;
+      if (doc) porMes[mes]._docs.add(String(doc));
+    });
+
+    Object.keys(porMes).forEach(m => {
+      porMes[m].comprobantes = porMes[m]._docs.size;
+    });
+
+    return {
+      comprobantes: comprobantes.size || rows.length,
+      valorSinImpuestos,
+      baseIVA,
+      baseSinIVA,
+      iva,
+      total,
+      porMes
+    };
+  }
+
+  async function leerExcelRetencionesDashboard(file) {
+    const wb = await leerWorkbook(file);
+    const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("RETENC")) || wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
+
+    let archivos = new Set();
+    let lineas = 0;
+    let totalRetenido = 0;
+    let porCodigo = {};
+    let porMes = {};
+
+    rows.forEach(r => {
+      if (filaResumenOTotal(r)) return;
+
+      const codigo = texto(valorCampo(r, ["CODIGO RETENCION", "codigoRetencion", "CODIGO"]));
+      const porcentaje = num(valorCampo(r, ["PORCENTAJE RETENCION", "PORCENTAJE RETENER", "porcentajeRetener", "%"]));
+      const base = num(valorCampo(r, ["BASE IMPONIBLE", "BASE", "baseImponible"]));
+      const retenido = num(valorCampo(r, ["VALOR RETENIDO", "RETENIDO", "valorRetenido"]));
+      const archivo = texto(valorCampo(r, ["ARCHIVO XML", "ARCHIVO", "archivo"]));
+
+      if (base === 0 && retenido === 0 && !codigo) return;
+
+      lineas++;
+      totalRetenido += retenido;
+      if (archivo) archivos.add(archivo);
+
+      const key = codigo + "|" + porcentaje;
+      if (!porCodigo[key]) porCodigo[key] = { codigo, porcentaje, base: 0, retenido: 0 };
+      porCodigo[key].base += base;
+      porCodigo[key].retenido += retenido;
+
+      const mes = obtenerMesFila(r);
+      if (!porMes[mes]) porMes[mes] = resumenRetencionesVacio();
+      porMes[mes].lineas++;
+      porMes[mes].totalRetenido += retenido;
+      if (archivo) porMes[mes]._archivos.add(archivo);
+    });
+
+    Object.keys(porMes).forEach(m => {
+      porMes[m].archivos = porMes[m]._archivos.size;
+    });
+
+    return {
+      archivos: archivos.size,
+      lineas,
+      totalRetenido,
+      porCodigo: Object.values(porCodigo).sort((a,b) => String(a.codigo).localeCompare(String(b.codigo)) || a.porcentaje-b.porcentaje),
+      porMes
+    };
+  }
+
+  function renderDashboardTributario(compras, rets) {
+    document.getElementById("kpisDash").innerHTML = `
+      <div class="kpi-card"><div class="lbl">Comprobantes compras</div><div class="val">${compras.comprobantes || 0}</div></div>
+      <div class="kpi-card"><div class="lbl">Total compras</div><div class="val">$ ${fmtDash(compras.total)}</div></div>
+      <div class="kpi-card"><div class="lbl">Base IVA</div><div class="val">$ ${fmtDash(compras.baseIVA)}</div></div>
+      <div class="kpi-card"><div class="lbl">IVA compras</div><div class="val">$ ${fmtDash(compras.iva)}</div></div>
+      <div class="kpi-card"><div class="lbl">XML retenciones</div><div class="val">${rets.archivos || 0}</div></div>
+      <div class="kpi-card"><div class="lbl">Total retenido</div><div class="val">$ ${fmtDash(rets.totalRetenido)}</div></div>
+    `;
+
+    document.getElementById("panelDash").innerHTML = `
+      <div class="card">
+        <h2>🛒 Resumen compras</h2>
+        <table class="dash-table">
+          <tr><th>Concepto</th><th>Valor</th></tr>
+          <tr><td>Comprobantes</td><td>${compras.comprobantes || 0}</td></tr>
+          <tr><td>Valor sin impuestos</td><td>$ ${fmtDash(compras.valorSinImpuestos)}</td></tr>
+          <tr><td>Base IVA</td><td>$ ${fmtDash(compras.baseIVA)}</td></tr>
+          <tr><td>Base sin IVA</td><td>$ ${fmtDash(compras.baseSinIVA)}</td></tr>
+          <tr><td>IVA</td><td>$ ${fmtDash(compras.iva)}</td></tr>
+          <tr><td>Total</td><td><b>$ ${fmtDash(compras.total)}</b></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>🧾 Resumen retenciones</h2>
+        <table class="dash-table">
+          <tr><th>Concepto</th><th>Valor</th></tr>
+          <tr><td>Archivos XML</td><td>${rets.archivos || 0}</td></tr>
+          <tr><td>Líneas</td><td>${rets.lineas || 0}</td></tr>
+          <tr><td>Total retenido</td><td><b>$ ${fmtDash(rets.totalRetenido)}</b></td></tr>
+        </table>
+        ${renderTablaCodigoRet(rets.porCodigo || [])}
+      </div>
+    `;
+
+    renderEvolucionAnualLocal(compras.porMes || {}, rets.porMes || {});
+  }
+
+  function renderTablaCodigoRet(items) {
+    if (!items.length) return `<div class="note">No hay retenciones para resumir.</div>`;
+    return `
+      <table class="dash-table">
+        <tr><th>Código</th><th>%</th><th>Base</th><th>Retenido</th></tr>
+        ${items.map(x => `
+          <tr>
+            <td>${x.codigo || ""}</td>
+            <td>${fmtDash(x.porcentaje)}</td>
+            <td>$ ${fmtDash(x.base)}</td>
+            <td>$ ${fmtDash(x.retenido)}</td>
+          </tr>
+        `).join("")}
+      </table>
+    `;
+  }
+
+  function renderEvolucionAnualLocal(comprasMes, retMes) {
+    const meses = [
+      ["01","01 ENERO"],["02","02 FEBRERO"],["03","03 MARZO"],["04","04 ABRIL"],
+      ["05","05 MAYO"],["06","06 JUNIO"],["07","07 JULIO"],["08","08 AGOSTO"],
+      ["09","09 SEPTIEMBRE"],["10","10 OCTUBRE"],["11","11 NOVIEMBRE"],["12","12 DICIEMBRE"]
+    ];
+
+    const maxCompras = Math.max(...meses.map(([m]) => Number((comprasMes[m] || {}).total || 0)), 1);
+    const maxRet = Math.max(...meses.map(([m]) => Number((retMes[m] || {}).totalRetenido || 0)), 1);
+
+    document.getElementById("tablaAnualDash").innerHTML = `
+      <div class="card" style="margin-top:16px;">
+        <h2>📅 Evolución anual cargada</h2>
+        <table class="dash-table">
+          <tr>
+            <th>Mes</th>
+            <th>Compras</th>
+            <th>IVA</th>
+            <th>Retenciones</th>
+            <th>Compras</th>
+            <th>Ret.</th>
+          </tr>
+          ${meses.map(([m,n]) => {
+            const c = comprasMes[m] || resumenComprasVacio();
+            const r = retMes[m] || resumenRetencionesVacio();
+            return `
+              <tr>
+                <td>${n}</td>
+                <td>$ ${fmtDash(c.total)}</td>
+                <td>$ ${fmtDash(c.iva)}</td>
+                <td>$ ${fmtDash(r.totalRetenido)}</td>
+                <td><div class="bar" style="width:${Math.max(2, Number(c.total||0)/maxCompras*100)}%;"></div></td>
+                <td><div class="bar bar-ret" style="width:${Math.max(2, Number(r.totalRetenido||0)/maxRet*100)}%;"></div></td>
+              </tr>
+            `;
+          }).join("")}
+        </table>
+      </div>
+    `;
+  }
+
+  function resumenComprasVacio() {
+    return { comprobantes: 0, valorSinImpuestos: 0, baseIVA: 0, baseSinIVA: 0, iva: 0, total: 0, _docs: new Set() };
+  }
+
+  function resumenRetencionesVacio() {
+    return { archivos: 0, lineas: 0, totalRetenido: 0, porCodigo: [], _archivos: new Set() };
+  }
+
+  function valorCampo(row, nombres) {
+    for (const n of nombres) {
+      if (row[n] !== undefined && row[n] !== null && row[n] !== "") return row[n];
+      const key = Object.keys(row).find(k => String(k).trim().toUpperCase() === String(n).trim().toUpperCase());
+      if (key && row[key] !== "") return row[key];
+    }
+    return "";
+  }
+
+  function obtenerMesFila(row) {
+    const mesCampo = texto(valorCampo(row, ["MES", "Nombre del mes", "NOMBRE DEL MES"])).toUpperCase();
+    const mapa = {
+      "01": "01", "ENERO": "01", "01 ENERO": "01",
+      "02": "02", "FEBRERO": "02", "02 FEBRERO": "02",
+      "03": "03", "MARZO": "03", "03 MARZO": "03",
+      "04": "04", "ABRIL": "04", "04 ABRIL": "04",
+      "05": "05", "MAYO": "05", "05 MAYO": "05",
+      "06": "06", "JUNIO": "06", "06 JUNIO": "06",
+      "07": "07", "JULIO": "07", "07 JULIO": "07",
+      "08": "08", "AGOSTO": "08", "08 AGOSTO": "08",
+      "09": "09", "SEPTIEMBRE": "09", "09 SEPTIEMBRE": "09",
+      "10": "10", "OCTUBRE": "10", "10 OCTUBRE": "10",
+      "11": "11", "NOVIEMBRE": "11", "11 NOVIEMBRE": "11",
+      "12": "12", "DICIEMBRE": "12", "12 DICIEMBRE": "12"
+    };
+    if (mapa[mesCampo]) return mapa[mesCampo];
+
+    const fecha = texto(valorCampo(row, ["FECHA EMISION", "fechaEmision", "fechaEmisionDocSustento", "fechaRetencion"]));
+    const m = fecha.match(/\/(\d{1,2})\//);
+    if (m) return String(m[1]).padStart(2, "0");
+
+    return document.getElementById("dashMes") ? document.getElementById("dashMes").value : "01";
+  }
+
+  function filaResumenOTotal(row) {
+    const all = Object.values(row).map(x => String(x || "").toUpperCase()).join(" ");
+    return all.includes("TOTALES") || all.includes("TOTAL RETENIDO") || all.includes("RESUMEN DE");
+  }
+
+  function num(v) {
+    if (v === null || v === undefined || v === "") return 0;
+    if (typeof v === "number") return v;
+    let s = String(v).replace(/\$/g, "").replace(/\s/g, "").replace(/,/g, ".");
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function texto(v) {
+    return v === null || v === undefined ? "" : String(v).trim();
+  }
+
+  function fmtDash(n) {
+    return Number(n || 0).toLocaleString("es-EC", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   }
 
 
