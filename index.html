@@ -204,7 +204,7 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>9.3</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>10.0</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Control anual</span></div>
   </section>
 
@@ -341,70 +341,7 @@
     <div id="descargasExcel" class="links"></div>
   </section>
 
-  <section class="card">
-    <h2>⚠️ Centro de Duplicados de Compras</h2>
-    <p>Consulta duplicados rechazados de compras. Para retenciones el control de duplicados queda desactivado.</p>
-
-    <div class="grid">
-      <div>
-        <label>Año</label>
-        <input id="anioDup" type="number" value="2026" min="2020" max="2035">
-      </div>
-
-      <div>
-        <label>Tipo</label>
-        <select id="tipoDup">
-          <option value="compras">Compras</option>
-        </select>
-      </div>
-
-      <div>
-        <label>Archivo</label>
-        <select id="modoDup" onchange="actualizarMesDuplicados()">
-          <option value="mensual">Mensual</option>
-          <option value="acumulado">Acumulado anual</option>
-        </select>
-      </div>
-
-      <div id="bloqueMesDup">
-        <label>Mes</label>
-        <select id="mesDup">
-          <option value="01">01 ENERO</option>
-          <option value="02">02 FEBRERO</option>
-          <option value="03">03 MARZO</option>
-          <option value="04">04 ABRIL</option>
-          <option value="05">05 MAYO</option>
-          <option value="06">06 JUNIO</option>
-          <option value="07">07 JULIO</option>
-          <option value="08">08 AGOSTO</option>
-          <option value="09">09 SEPTIEMBRE</option>
-          <option value="10">10 OCTUBRE</option>
-          <option value="11">11 NOVIEMBRE</option>
-          <option value="12">12 DICIEMBRE</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="grid" style="margin-top:12px;">
-      <div>
-        <label>Buscar proveedor/emisor</label>
-        <input id="buscarDupNombre" type="text" placeholder="Proveedor o emisor">
-      </div>
-      <div>
-        <label>Buscar documento / clave</label>
-        <input id="buscarDupDoc" type="text" placeholder="Documento, clave o retención">
-      </div>
-    </div>
-
-    <div class="button-row three" style="margin-top:14px;">
-      <button onclick="buscarDuplicadoSeleccionado()">🔍 Ver Duplicados en App</button>
-    </div>
-
-    <div id="duplicadosPanel"></div>
-    <div id="duplicadosTabla"></div>
-  </section>
-
-  <section class="card">
+    <section class="card">
     <h2>📅 Panel Anual</h2>
     <p>Consulta el estado de cada mes: archivos, comprobantes, retenciones y enlaces rápidos.</p>
     <div class="grid">
@@ -420,7 +357,7 @@
   </section>
 
   <div class="note">
-    <b>Nuevo en v9.3:</b> retenciones sin control de duplicados; compras conserva control de duplicados. Retenciones se genera limpia según XML subidos por la usuaria.
+    <b>Nuevo en v10.0:</b> retenciones rehechas: cada XML se lee en un solo formato para evitar duplicación de líneas. Compras conserva control de duplicados.
   </div>
 
   <div id="resumen" class="summary"></div>
@@ -894,3 +831,4 @@
 </script>
 </body>
 </html>
+
