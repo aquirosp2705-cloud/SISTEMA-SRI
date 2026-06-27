@@ -278,7 +278,7 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>6.4 + Panel</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>Panel acumulados</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Subida múltiple</span></div>
   </section>
 
@@ -368,12 +368,10 @@
 
     <div id="linksExcel" class="links"></div>
   </section>
-
-
   <section class="dash-wrap">
-    <h2>📊 Evolución Tributaria</h2>
+    <h2>📊 Evolución Tributaria desde Acumulados</h2>
     <div class="dash-sub">
-      Panel visual sin modificar el Code.gs. Carga aquí los Excel ya generados de compras y retenciones para ver tus totales y evolución en pantalla.
+      Este panel usa únicamente los Excel acumulados del año. Descarga o selecciona el acumulado de compras y el acumulado de retenciones, y la app arma la evolución mensual en pantalla sin modificar el Code.gs.
     </div>
 
     <div class="dash-grid">
@@ -381,35 +379,20 @@
         <label>Año</label>
         <input id="dashAnio" type="number" value="2026" min="2020" max="2035">
       </div>
+
       <div class="dash-field">
-        <label>Mes</label>
-        <select id="dashMes">
-          <option value="01">01 ENERO</option>
-          <option value="02">02 FEBRERO</option>
-          <option value="03">03 MARZO</option>
-          <option value="04">04 ABRIL</option>
-          <option value="05">05 MAYO</option>
-          <option value="06">06 JUNIO</option>
-          <option value="07">07 JULIO</option>
-          <option value="08">08 AGOSTO</option>
-          <option value="09">09 SEPTIEMBRE</option>
-          <option value="10">10 OCTUBRE</option>
-          <option value="11">11 NOVIEMBRE</option>
-          <option value="12">12 DICIEMBRE</option>
-        </select>
-      </div>
-      <div class="dash-field">
-        <label>Excel compras mensual/acumulado</label>
+        <label>Compras acumulado anual</label>
         <input id="excelComprasDash" type="file" accept=".xlsx,.xls,.csv">
       </div>
+
       <div class="dash-field">
-        <label>Excel retenciones mensual/acumulado</label>
+        <label>Retenciones acumulado anual</label>
         <input id="excelRetencionesDash" type="file" accept=".xlsx,.xls,.csv">
       </div>
     </div>
 
     <div class="button-row" style="margin-top:14px;">
-      <button onclick="leerEvolucionTributaria()">📈 Leer Excel y mostrar evolución</button>
+      <button onclick="leerEvolucionTributaria()">📈 Leer acumulados y mostrar dashboard</button>
     </div>
 
     <div id="kpisDash" class="kpi-grid"></div>
@@ -418,7 +401,7 @@
   </section>
 
 
-  <div class="note">
+<div class="note">
     <b>Nuevo:</b> Retenciones se genera con formato tipo Ret0126: detalle, valor calculado, estado, diferencia y resumen por porcentaje sin totalizar bases generales.
   </div>
 
@@ -599,17 +582,18 @@
 
 
 
+
   async function leerEvolucionTributaria() {
     const fCompras = document.getElementById("excelComprasDash").files[0];
     const fRets = document.getElementById("excelRetencionesDash").files[0];
 
     if (!fCompras && !fRets) {
-      alert("Selecciona al menos un Excel de compras o retenciones.");
+      alert("Selecciona al menos el Excel acumulado de compras o el acumulado de retenciones.");
       return;
     }
 
-    const compras = fCompras ? await leerExcelComprasDashboard(fCompras) : resumenComprasVacio();
-    const rets = fRets ? await leerExcelRetencionesDashboard(fRets) : resumenRetencionesVacio();
+    const compras = fCompras ? await leerExcelComprasAcumuladoDashboard(fCompras) : resumenComprasVacio();
+    const rets = fRets ? await leerExcelRetencionesAcumuladoDashboard(fRets) : resumenRetencionesVacio();
 
     renderDashboardTributario(compras, rets);
   }
@@ -631,28 +615,21 @@
     });
   }
 
-  async function leerExcelComprasDashboard(file) {
+  async function leerExcelComprasAcumuladoDashboard(file) {
     const wb = await leerWorkbook(file);
     const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("COMPRA")) || wb.SheetNames[0];
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
 
-    let comprobantes = new Set();
-    let valorSinImpuestos = 0;
-    let baseIVA = 0;
-    let baseSinIVA = 0;
-    let iva = 0;
-    let total = 0;
+    let total = resumenComprasVacio();
     let porMes = {};
 
     rows.forEach(r => {
       if (filaResumenOTotal(r)) return;
 
-      const doc = valorCampo(r, ["CLAVE ACCESO", "DOCUMENTO", "claveAcceso", "documento"]);
-      if (doc) comprobantes.add(String(doc));
-
       const mes = obtenerMesFila(r);
       if (!porMes[mes]) porMes[mes] = resumenComprasVacio();
 
+      const doc = valorCampo(r, ["CLAVE ACCESO", "DOCUMENTO", "claveAcceso", "documento"]);
       const v = num(valorCampo(r, ["VALOR SIN IMPUESTOS", "valorSinImpuestos"]));
       const bIva = num(valorCampo(r, ["BASE IVA", "baseIVA"]));
       const b0 = num(valorCampo(r, ["BASE SIN IVA", "baseSinIVA", "BASE 0"]));
@@ -661,45 +638,38 @@
 
       if (v === 0 && bIva === 0 && b0 === 0 && iv === 0 && tot === 0) return;
 
-      valorSinImpuestos += v;
-      baseIVA += bIva;
-      baseSinIVA += b0;
-      iva += iv;
-      total += tot;
+      if (doc) {
+        total._docs.add(String(doc));
+        porMes[mes]._docs.add(String(doc));
+      }
+
+      total.valorSinImpuestos += v;
+      total.baseIVA += bIva;
+      total.baseSinIVA += b0;
+      total.iva += iv;
+      total.total += tot;
 
       porMes[mes].valorSinImpuestos += v;
       porMes[mes].baseIVA += bIva;
       porMes[mes].baseSinIVA += b0;
       porMes[mes].iva += iv;
       porMes[mes].total += tot;
-      if (doc) porMes[mes]._docs.add(String(doc));
     });
 
-    Object.keys(porMes).forEach(m => {
-      porMes[m].comprobantes = porMes[m]._docs.size;
-    });
-
-    return {
-      comprobantes: comprobantes.size || rows.length,
-      valorSinImpuestos,
-      baseIVA,
-      baseSinIVA,
-      iva,
-      total,
-      porMes
-    };
+    total.comprobantes = total._docs.size;
+    Object.keys(porMes).forEach(m => porMes[m].comprobantes = porMes[m]._docs.size);
+    total.porMes = porMes;
+    return total;
   }
 
-  async function leerExcelRetencionesDashboard(file) {
+  async function leerExcelRetencionesAcumuladoDashboard(file) {
     const wb = await leerWorkbook(file);
     const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("RETENC")) || wb.SheetNames[0];
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
 
-    let archivos = new Set();
-    let lineas = 0;
-    let totalRetenido = 0;
-    let porCodigo = {};
+    let total = resumenRetencionesVacio();
     let porMes = {};
+    let porCodigo = {};
 
     rows.forEach(r => {
       if (filaResumenOTotal(r)) return;
@@ -712,48 +682,53 @@
 
       if (base === 0 && retenido === 0 && !codigo) return;
 
-      lineas++;
-      totalRetenido += retenido;
-      if (archivo) archivos.add(archivo);
+      const mes = obtenerMesFila(r);
+      if (!porMes[mes]) porMes[mes] = resumenRetencionesVacio();
+
+      total.lineas++;
+      total.totalRetenido += retenido;
+      if (archivo) total._archivos.add(archivo);
+
+      porMes[mes].lineas++;
+      porMes[mes].totalRetenido += retenido;
+      if (archivo) porMes[mes]._archivos.add(archivo);
 
       const key = codigo + "|" + porcentaje;
       if (!porCodigo[key]) porCodigo[key] = { codigo, porcentaje, base: 0, retenido: 0 };
       porCodigo[key].base += base;
       porCodigo[key].retenido += retenido;
 
-      const mes = obtenerMesFila(r);
-      if (!porMes[mes]) porMes[mes] = resumenRetencionesVacio();
-      porMes[mes].lineas++;
-      porMes[mes].totalRetenido += retenido;
-      if (archivo) porMes[mes]._archivos.add(archivo);
+      if (!porMes[mes].porCodigoMap) porMes[mes].porCodigoMap = {};
+      if (!porMes[mes].porCodigoMap[key]) porMes[mes].porCodigoMap[key] = { codigo, porcentaje, base: 0, retenido: 0 };
+      porMes[mes].porCodigoMap[key].base += base;
+      porMes[mes].porCodigoMap[key].retenido += retenido;
     });
+
+    total.archivos = total._archivos.size;
+    total.porCodigo = Object.values(porCodigo).sort((a,b) => String(a.codigo).localeCompare(String(b.codigo)) || a.porcentaje-b.porcentaje);
 
     Object.keys(porMes).forEach(m => {
       porMes[m].archivos = porMes[m]._archivos.size;
+      porMes[m].porCodigo = Object.values(porMes[m].porCodigoMap || {});
     });
 
-    return {
-      archivos: archivos.size,
-      lineas,
-      totalRetenido,
-      porCodigo: Object.values(porCodigo).sort((a,b) => String(a.codigo).localeCompare(String(b.codigo)) || a.porcentaje-b.porcentaje),
-      porMes
-    };
+    total.porMes = porMes;
+    return total;
   }
 
   function renderDashboardTributario(compras, rets) {
     document.getElementById("kpisDash").innerHTML = `
       <div class="kpi-card"><div class="lbl">Comprobantes compras</div><div class="val">${compras.comprobantes || 0}</div></div>
-      <div class="kpi-card"><div class="lbl">Total compras</div><div class="val">$ ${fmtDash(compras.total)}</div></div>
-      <div class="kpi-card"><div class="lbl">Base IVA</div><div class="val">$ ${fmtDash(compras.baseIVA)}</div></div>
-      <div class="kpi-card"><div class="lbl">IVA compras</div><div class="val">$ ${fmtDash(compras.iva)}</div></div>
+      <div class="kpi-card"><div class="lbl">Total compras anual</div><div class="val">$ ${fmtDash(compras.total)}</div></div>
+      <div class="kpi-card"><div class="lbl">Base IVA anual</div><div class="val">$ ${fmtDash(compras.baseIVA)}</div></div>
+      <div class="kpi-card"><div class="lbl">IVA compras anual</div><div class="val">$ ${fmtDash(compras.iva)}</div></div>
       <div class="kpi-card"><div class="lbl">XML retenciones</div><div class="val">${rets.archivos || 0}</div></div>
-      <div class="kpi-card"><div class="lbl">Total retenido</div><div class="val">$ ${fmtDash(rets.totalRetenido)}</div></div>
+      <div class="kpi-card"><div class="lbl">Total retenido anual</div><div class="val">$ ${fmtDash(rets.totalRetenido)}</div></div>
     `;
 
     document.getElementById("panelDash").innerHTML = `
       <div class="card">
-        <h2>🛒 Resumen compras</h2>
+        <h2>🛒 Compras acumuladas</h2>
         <table class="dash-table">
           <tr><th>Concepto</th><th>Valor</th></tr>
           <tr><td>Comprobantes</td><td>${compras.comprobantes || 0}</td></tr>
@@ -766,7 +741,7 @@
       </div>
 
       <div class="card">
-        <h2>🧾 Resumen retenciones</h2>
+        <h2>🧾 Retenciones acumuladas</h2>
         <table class="dash-table">
           <tr><th>Concepto</th><th>Valor</th></tr>
           <tr><td>Archivos XML</td><td>${rets.archivos || 0}</td></tr>
@@ -809,13 +784,15 @@
 
     document.getElementById("tablaAnualDash").innerHTML = `
       <div class="card" style="margin-top:16px;">
-        <h2>📅 Evolución anual cargada</h2>
+        <h2>📅 Evolución anual desde acumulados</h2>
         <table class="dash-table">
           <tr>
             <th>Mes</th>
-            <th>Compras</th>
+            <th>Comprob.</th>
+            <th>Total compras</th>
+            <th>Base IVA</th>
             <th>IVA</th>
-            <th>Retenciones</th>
+            <th>Total retenido</th>
             <th>Compras</th>
             <th>Ret.</th>
           </tr>
@@ -825,7 +802,9 @@
             return `
               <tr>
                 <td>${n}</td>
+                <td>${c.comprobantes || 0}</td>
                 <td>$ ${fmtDash(c.total)}</td>
+                <td>$ ${fmtDash(c.baseIVA)}</td>
                 <td>$ ${fmtDash(c.iva)}</td>
                 <td>$ ${fmtDash(r.totalRetenido)}</td>
                 <td><div class="bar" style="width:${Math.max(2, Number(c.total||0)/maxCompras*100)}%;"></div></td>
@@ -839,11 +818,11 @@
   }
 
   function resumenComprasVacio() {
-    return { comprobantes: 0, valorSinImpuestos: 0, baseIVA: 0, baseSinIVA: 0, iva: 0, total: 0, _docs: new Set() };
+    return { comprobantes: 0, valorSinImpuestos: 0, baseIVA: 0, baseSinIVA: 0, iva: 0, total: 0, _docs: new Set(), porMes: {} };
   }
 
   function resumenRetencionesVacio() {
-    return { archivos: 0, lineas: 0, totalRetenido: 0, porCodigo: [], _archivos: new Set() };
+    return { archivos: 0, lineas: 0, totalRetenido: 0, porCodigo: [], _archivos: new Set(), porMes: {} };
   }
 
   function valorCampo(row, nombres) {
@@ -877,12 +856,12 @@
     const m = fecha.match(/\/(\d{1,2})\//);
     if (m) return String(m[1]).padStart(2, "0");
 
-    return document.getElementById("dashMes") ? document.getElementById("dashMes").value : "01";
+    return "01";
   }
 
   function filaResumenOTotal(row) {
     const all = Object.values(row).map(x => String(x || "").toUpperCase()).join(" ");
-    return all.includes("TOTALES") || all.includes("TOTAL RETENIDO") || all.includes("RESUMEN DE");
+    return all.includes("TOTALES") || all.includes("TOTAL GENERAL") || all.includes("TOTAL RETENIDO") || all.includes("RESUMEN DE") || all.includes("RETENCION ");
   }
 
   function num(v) {
