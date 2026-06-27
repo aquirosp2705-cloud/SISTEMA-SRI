@@ -369,9 +369,9 @@
     <div id="linksExcel" class="links"></div>
   </section>
   <section class="dash-wrap">
-    <h2>📊 Evolución Tributaria desde Acumulados</h2>
+    <h2>📊 Dashboard Tributario desde Acumulados</h2>
     <div class="dash-sub">
-      Este panel usa únicamente los Excel acumulados del año. Descarga o selecciona el acumulado de compras y el acumulado de retenciones, y la app arma la evolución mensual en pantalla sin modificar el Code.gs.
+      Este panel usa únicamente los Excel acumulados del año. Muestra enero a diciembre y una fila acumulada, separando correctamente compras y retenciones.
     </div>
 
     <div class="dash-grid">
@@ -665,31 +665,57 @@
   async function leerExcelRetencionesAcumuladoDashboard(file) {
     const wb = await leerWorkbook(file);
     const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("RETENC")) || wb.SheetNames[0];
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
+
+    // Leemos como matriz para cortar cuando empiezan los resúmenes del acumulado.
+    const matrix = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "" });
+    if (!matrix.length) return resumenRetencionesVacio();
+
+    const headers = matrix[0].map(h => texto(h).toUpperCase());
+    const idxCodigo = buscarIndiceLocal(headers, ["CODIGO RETENCION", "CODIGORETENCION", "CODIGO"]);
+    const idxPorcentaje = buscarIndiceLocal(headers, ["PORCENTAJE RETENER", "PORCENTAJERETENER", "PORCENTAJE RETENCION", "%"]);
+    const idxBase = buscarIndiceLocal(headers, ["BASE IMPONIBLE", "BASEIMPONIBLE", "BASE"]);
+    const idxRetenido = buscarIndiceLocal(headers, ["VALOR RETENIDO", "VALORRETENIDO", "RETENIDO"]);
+    const idxArchivo = buscarIndiceLocal(headers, ["ARCHIVO XML", "ARCHIVOXML", "ARCHIVO"]);
+    const idxMes = buscarIndiceLocal(headers, ["MES", "NOMBRE DEL MES", "NOMBREDELMES"]);
+    const idxPeriodo = buscarIndiceLocal(headers, ["PERIODO FISCAL", "PERIODOFISCAL"]);
+    const idxFecha = buscarIndiceLocal(headers, ["FECHA RETENCION", "FECHARETENCION", "FECHAEMISION", "FECHA EMISION"]);
 
     let total = resumenRetencionesVacio();
     let porMes = {};
     let porCodigo = {};
 
-    rows.forEach(r => {
-      if (filaResumenOTotal(r)) return;
+    for (let i = 1; i < matrix.length; i++) {
+      const row = matrix[i];
+      const rowText = row.map(x => texto(x).toUpperCase()).join(" ");
 
-      const codigo = texto(valorCampo(r, ["CODIGO RETENCION", "codigoRetencion", "CODIGO"]));
-      const porcentaje = num(valorCampo(r, ["PORCENTAJE RETENCION", "PORCENTAJE RETENER", "porcentajeRetener", "%"]));
-      const base = num(valorCampo(r, ["BASE IMPONIBLE", "BASE", "baseImponible"]));
-      const retenido = num(valorCampo(r, ["VALOR RETENIDO", "RETENIDO", "valorRetenido"]));
-      const archivo = texto(valorCampo(r, ["ARCHIVO XML", "ARCHIVO", "archivo"]));
+      // Corta antes de leer los resúmenes que están abajo del acumulado.
+      if (
+        rowText.includes("RESUMEN") ||
+        rowText.includes("TOTAL GENERAL") ||
+        rowText.includes("RETENCION ") ||
+        rowText.includes("TOTAL RETENIDO")
+      ) {
+        continue;
+      }
 
-      if (base === 0 && retenido === 0 && !codigo) return;
+      const codigo = texto(row[idxCodigo]);
+      const porcentaje = num(row[idxPorcentaje]);
+      const base = num(row[idxBase]);
+      const retenido = num(row[idxRetenido]);
+      const archivo = texto(row[idxArchivo]);
 
-      const mes = obtenerMesFila(r);
+      if (base === 0 && retenido === 0 && !codigo) continue;
+
+      const mes = obtenerMesDesdeColumnas(row, idxMes, idxPeriodo, idxFecha);
       if (!porMes[mes]) porMes[mes] = resumenRetencionesVacio();
 
       total.lineas++;
+      total.baseRetenida += base;
       total.totalRetenido += retenido;
       if (archivo) total._archivos.add(archivo);
 
       porMes[mes].lineas++;
+      porMes[mes].baseRetenida += base;
       porMes[mes].totalRetenido += retenido;
       if (archivo) porMes[mes]._archivos.add(archivo);
 
@@ -702,7 +728,7 @@
       if (!porMes[mes].porCodigoMap[key]) porMes[mes].porCodigoMap[key] = { codigo, porcentaje, base: 0, retenido: 0 };
       porMes[mes].porCodigoMap[key].base += base;
       porMes[mes].porCodigoMap[key].retenido += retenido;
-    });
+    }
 
     total.archivos = total._archivos.size;
     total.porCodigo = Object.values(porCodigo).sort((a,b) => String(a.codigo).localeCompare(String(b.codigo)) || a.porcentaje-b.porcentaje);
@@ -722,7 +748,7 @@
       <div class="kpi-card"><div class="lbl">Total compras anual</div><div class="val">$ ${fmtDash(compras.total)}</div></div>
       <div class="kpi-card"><div class="lbl">Base IVA anual</div><div class="val">$ ${fmtDash(compras.baseIVA)}</div></div>
       <div class="kpi-card"><div class="lbl">IVA compras anual</div><div class="val">$ ${fmtDash(compras.iva)}</div></div>
-      <div class="kpi-card"><div class="lbl">XML retenciones</div><div class="val">${rets.archivos || 0}</div></div>
+      <div class="kpi-card"><div class="lbl">Base retenciones</div><div class="val">$ ${fmtDash(rets.baseRetenida)}</div></div>
       <div class="kpi-card"><div class="lbl">Total retenido anual</div><div class="val">$ ${fmtDash(rets.totalRetenido)}</div></div>
     `;
 
@@ -746,13 +772,14 @@
           <tr><th>Concepto</th><th>Valor</th></tr>
           <tr><td>Archivos XML</td><td>${rets.archivos || 0}</td></tr>
           <tr><td>Líneas</td><td>${rets.lineas || 0}</td></tr>
+          <tr><td>Base retenida</td><td>$ ${fmtDash(rets.baseRetenida)}</td></tr>
           <tr><td>Total retenido</td><td><b>$ ${fmtDash(rets.totalRetenido)}</b></td></tr>
         </table>
         ${renderTablaCodigoRet(rets.porCodigo || [])}
       </div>
     `;
 
-    renderEvolucionAnualLocal(compras.porMes || {}, rets.porMes || {});
+    renderTablaMensualVertical(compras.porMes || {}, rets.porMes || {});
   }
 
   function renderTablaCodigoRet(items) {
@@ -772,49 +799,150 @@
     `;
   }
 
-  function renderEvolucionAnualLocal(comprasMes, retMes) {
+  function renderTablaMensualVertical(comprasMes, retMes) {
     const meses = [
       ["01","01 ENERO"],["02","02 FEBRERO"],["03","03 MARZO"],["04","04 ABRIL"],
       ["05","05 MAYO"],["06","06 JUNIO"],["07","07 JULIO"],["08","08 AGOSTO"],
       ["09","09 SEPTIEMBRE"],["10","10 OCTUBRE"],["11","11 NOVIEMBRE"],["12","12 DICIEMBRE"]
     ];
 
-    const maxCompras = Math.max(...meses.map(([m]) => Number((comprasMes[m] || {}).total || 0)), 1);
-    const maxRet = Math.max(...meses.map(([m]) => Number((retMes[m] || {}).totalRetenido || 0)), 1);
+    let totalC = resumenComprasVacio();
+    let totalR = resumenRetencionesVacio();
+
+    meses.forEach(([m]) => {
+      const c = comprasMes[m] || resumenComprasVacio();
+      const r = retMes[m] || resumenRetencionesVacio();
+
+      totalC.comprobantes += Number(c.comprobantes || 0);
+      totalC.valorSinImpuestos += Number(c.valorSinImpuestos || 0);
+      totalC.baseIVA += Number(c.baseIVA || 0);
+      totalC.baseSinIVA += Number(c.baseSinIVA || 0);
+      totalC.iva += Number(c.iva || 0);
+      totalC.total += Number(c.total || 0);
+
+      totalR.archivos += Number(r.archivos || 0);
+      totalR.lineas += Number(r.lineas || 0);
+      totalR.baseRetenida += Number(r.baseRetenida || 0);
+      totalR.totalRetenido += Number(r.totalRetenido || 0);
+    });
 
     document.getElementById("tablaAnualDash").innerHTML = `
       <div class="card" style="margin-top:16px;">
-        <h2>📅 Evolución anual desde acumulados</h2>
+        <h2>📅 Compras por mes</h2>
         <table class="dash-table">
           <tr>
             <th>Mes</th>
             <th>Comprob.</th>
-            <th>Total compras</th>
+            <th>Valor sin imp.</th>
             <th>Base IVA</th>
+            <th>Base sin IVA</th>
             <th>IVA</th>
-            <th>Total retenido</th>
-            <th>Compras</th>
-            <th>Ret.</th>
+            <th>Total compras</th>
           </tr>
           ${meses.map(([m,n]) => {
             const c = comprasMes[m] || resumenComprasVacio();
-            const r = retMes[m] || resumenRetencionesVacio();
             return `
               <tr>
                 <td>${n}</td>
                 <td>${c.comprobantes || 0}</td>
-                <td>$ ${fmtDash(c.total)}</td>
+                <td>$ ${fmtDash(c.valorSinImpuestos)}</td>
                 <td>$ ${fmtDash(c.baseIVA)}</td>
+                <td>$ ${fmtDash(c.baseSinIVA)}</td>
                 <td>$ ${fmtDash(c.iva)}</td>
-                <td>$ ${fmtDash(r.totalRetenido)}</td>
-                <td><div class="bar" style="width:${Math.max(2, Number(c.total||0)/maxCompras*100)}%;"></div></td>
-                <td><div class="bar bar-ret" style="width:${Math.max(2, Number(r.totalRetenido||0)/maxRet*100)}%;"></div></td>
+                <td>$ ${fmtDash(c.total)}</td>
               </tr>
             `;
           }).join("")}
+          <tr>
+            <th>ACUMULADO</th>
+            <th>${totalC.comprobantes || 0}</th>
+            <th>$ ${fmtDash(totalC.valorSinImpuestos)}</th>
+            <th>$ ${fmtDash(totalC.baseIVA)}</th>
+            <th>$ ${fmtDash(totalC.baseSinIVA)}</th>
+            <th>$ ${fmtDash(totalC.iva)}</th>
+            <th>$ ${fmtDash(totalC.total)}</th>
+          </tr>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2>🧾 Retenciones por mes</h2>
+        <table class="dash-table">
+          <tr>
+            <th>Mes</th>
+            <th>XML</th>
+            <th>Líneas</th>
+            <th>Base retenida</th>
+            <th>Total retenido</th>
+          </tr>
+          ${meses.map(([m,n]) => {
+            const r = retMes[m] || resumenRetencionesVacio();
+            return `
+              <tr>
+                <td>${n}</td>
+                <td>${r.archivos || 0}</td>
+                <td>${r.lineas || 0}</td>
+                <td>$ ${fmtDash(r.baseRetenida)}</td>
+                <td>$ ${fmtDash(r.totalRetenido)}</td>
+              </tr>
+            `;
+          }).join("")}
+          <tr>
+            <th>ACUMULADO</th>
+            <th>${totalR.archivos || 0}</th>
+            <th>${totalR.lineas || 0}</th>
+            <th>$ ${fmtDash(totalR.baseRetenida)}</th>
+            <th>$ ${fmtDash(totalR.totalRetenido)}</th>
+          </tr>
         </table>
       </div>
     `;
+  }
+
+  function resumenComprasVacio() {
+    return { comprobantes: 0, valorSinImpuestos: 0, baseIVA: 0, baseSinIVA: 0, iva: 0, total: 0, _docs: new Set(), porMes: {} };
+  }
+
+  function resumenRetencionesVacio() {
+    return { archivos: 0, lineas: 0, baseRetenida: 0, totalRetenido: 0, porCodigo: [], _archivos: new Set(), porMes: {} };
+  }
+
+  function buscarIndiceLocal(headers, nombres) {
+    const ns = nombres.map(x => String(x).toUpperCase().replace(/\s+/g, ""));
+    for (let i = 0; i < headers.length; i++) {
+      const h = String(headers[i]).toUpperCase().replace(/\s+/g, "");
+      if (ns.includes(h)) return i;
+    }
+    return -1;
+  }
+
+  function obtenerMesDesdeColumnas(row, idxMes, idxPeriodo, idxFecha) {
+    const mesDirecto = idxMes >= 0 ? texto(row[idxMes]).toUpperCase() : "";
+    const mapa = {
+      "01": "01", "ENERO": "01", "01 ENERO": "01",
+      "02": "02", "FEBRERO": "02", "02 FEBRERO": "02",
+      "03": "03", "MARZO": "03", "03 MARZO": "03",
+      "04": "04", "ABRIL": "04", "04 ABRIL": "04",
+      "05": "05", "MAYO": "05", "05 MAYO": "05",
+      "06": "06", "JUNIO": "06", "06 JUNIO": "06",
+      "07": "07", "JULIO": "07", "07 JULIO": "07",
+      "08": "08", "AGOSTO": "08", "08 AGOSTO": "08",
+      "09": "09", "SEPTIEMBRE": "09", "09 SEPTIEMBRE": "09",
+      "10": "10", "OCTUBRE": "10", "10 OCTUBRE": "10",
+      "11": "11", "NOVIEMBRE": "11", "11 NOVIEMBRE": "11",
+      "12": "12", "DICIEMBRE": "12", "12 DICIEMBRE": "12"
+    };
+    if (mapa[mesDirecto]) return mapa[mesDirecto];
+
+    const periodo = idxPeriodo >= 0 ? texto(row[idxPeriodo]) : "";
+    const p = periodo.match(/^(\d{1,2})\//);
+    if (p) return String(p[1]).padStart(2, "0");
+
+    const fecha = idxFecha >= 0 ? texto(row[idxFecha]) : "";
+    const f = fecha.match(/\/(\d{1,2})\//);
+    if (f) return String(f[1]).padStart(2, "0");
+
+    return "01";
   }
 
   function resumenComprasVacio() {
@@ -968,3 +1096,4 @@
 </script>
 </body>
 </html>
+
