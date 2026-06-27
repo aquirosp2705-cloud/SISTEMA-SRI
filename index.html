@@ -282,6 +282,88 @@
       font-weight:800;
     }
 
+
+    .exec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .exec-card {
+      background: linear-gradient(135deg, #ffffff, #f7fbff);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(31, 41, 55, .06);
+    }
+    .exec-card .t {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .exec-card .n {
+      color: var(--primary);
+      font-size: 24px;
+      font-weight: 900;
+    }
+    .exec-card .s {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    .chart-row {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 14px;
+    }
+    .chart-box {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 5px 16px rgba(31, 41, 55, .06);
+    }
+    .chart-title {
+      margin: 0 0 12px;
+      color: var(--primary);
+      font-size: 20px;
+      font-weight: 900;
+    }
+    .barline {
+      display: grid;
+      grid-template-columns: 95px 1fr 110px;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    .bartrack {
+      height: 14px;
+      border-radius: 10px;
+      background: #edf2fa;
+      overflow: hidden;
+    }
+    .barfill {
+      height: 100%;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--primary2), var(--accent));
+      min-width: 2px;
+    }
+    .barfill.ret {
+      background: linear-gradient(90deg, #87536b, #d8a1b1);
+    }
+    .barfill.iva {
+      background: linear-gradient(90deg, #5b7a49, #a9c98e);
+    }
+    .export-note {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
     footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -415,8 +497,10 @@
 
     <div class="button-row" style="margin-top:14px;">
       <button onclick="leerEvolucionTributaria()">📈 Leer acumulados y mostrar dashboard</button>
+      <button onclick="exportarDashboardExcel()">⬇️ Bajar Dashboard a Excel</button>
     </div>
 
+    <div id="dashboardEjecutivo"></div>
     <div id="kpisDash" class="kpi-grid"></div>
     <div id="panelDash" class="dash-panels"></div>
     <div id="tablaAnualDash"></div>
@@ -1629,6 +1713,246 @@ function resumenRetencionesVacio_CORREGIDO() {
     _archivos: new Set(),
     porMes: {}
   };
+}
+</script>
+
+
+<script>
+/* ==========================================================
+   DASHBOARD EJECUTIVO + EXPORTAR A EXCEL
+   Solo HTML. No modifica Code.gs.
+   Usa los datos ya calculados por el dashboard funcional.
+   ========================================================== */
+
+window.__dashboardTributarioData = null;
+
+// Guardamos referencia de la función funcional existente y la envolvemos
+if (typeof window.renderDashboardTributario_CORREGIDO === "function") {
+  const __renderOriginal = window.renderDashboardTributario_CORREGIDO;
+  window.renderDashboardTributario_CORREGIDO = function(compras, rets) {
+    window.__dashboardTributarioData = normalizarDashboardParaExportar(compras, rets);
+    renderDashboardEjecutivo(window.__dashboardTributarioData);
+    __renderOriginal(compras, rets);
+    renderGraficosEjecutivos(window.__dashboardTributarioData);
+  };
+}
+
+function normalizarDashboardParaExportar(compras, rets) {
+  const meses = listaMeses_CORREGIDO ? listaMeses_CORREGIDO() : [
+    ["01","01 ENERO"],["02","02 FEBRERO"],["03","03 MARZO"],["04","04 ABRIL"],
+    ["05","05 MAYO"],["06","06 JUNIO"],["07","07 JULIO"],["08","08 AGOSTO"],
+    ["09","09 SEPTIEMBRE"],["10","10 OCTUBRE"],["11","11 NOVIEMBRE"],["12","12 DICIEMBRE"]
+  ];
+
+  const comprasMes = compras.porMes || {};
+  const retMes = rets.porMes || {};
+
+  const mensualCompras = meses.map(([m,n]) => {
+    const c = comprasMes[m] || {};
+    return {
+      Mes: n,
+      Comprobantes: Number(c.comprobantes || 0),
+      Valor_sin_impuestos: Number(c.valorSinImpuestos || 0),
+      Base_IVA: Number(c.baseIVA || 0),
+      Base_sin_IVA: Number(c.baseSinIVA || 0),
+      IVA: Number(c.iva || 0),
+      Total_compras: Number(c.total || 0)
+    };
+  });
+
+  const grupos = (rets.grupoLista || []).map(g => ({
+    key: g.key,
+    etiqueta: g.etiqueta || ((g.codigo || "") + " / " + Number(g.porcentaje || 0).toFixed(2) + "%")
+  }));
+
+  const mensualRetenciones = meses.map(([m,n]) => {
+    const r = retMes[m] || {};
+    const row = {
+      Mes: n,
+      XML: Number(r.archivos || 0),
+      Lineas: Number(r.lineas || 0)
+    };
+
+    grupos.forEach(g => {
+      const item = (r.grupos || {})[g.key] || { base: 0, retenido: 0 };
+      row["Base " + g.etiqueta] = Number(item.base || 0);
+      row["Retenido " + g.etiqueta] = Number(item.retenido || 0);
+    });
+
+    row.Total_base = Number(r.baseRetenida || 0);
+    row.Total_retenido = Number(r.totalRetenido || 0);
+    return row;
+  });
+
+  const acumuladoCompras = {
+    Comprobantes: Number(compras.comprobantes || 0),
+    Valor_sin_impuestos: Number(compras.valorSinImpuestos || 0),
+    Base_IVA: Number(compras.baseIVA || 0),
+    Base_sin_IVA: Number(compras.baseSinIVA || 0),
+    IVA: Number(compras.iva || 0),
+    Total_compras: Number(compras.total || 0)
+  };
+
+  const acumuladoRetenciones = {
+    XML: Number(rets.archivos || 0),
+    Lineas: Number(rets.lineas || 0),
+    Base_retenida: Number(rets.baseRetenida || 0),
+    Total_retenido: Number(rets.totalRetenido || 0)
+  };
+
+  const indicadores = calcularIndicadoresDashboard(mensualCompras, mensualRetenciones, acumuladoCompras, acumuladoRetenciones);
+
+  return {
+    compras,
+    rets,
+    meses,
+    grupos,
+    mensualCompras,
+    mensualRetenciones,
+    acumuladoCompras,
+    acumuladoRetenciones,
+    indicadores
+  };
+}
+
+function calcularIndicadoresDashboard(mensualCompras, mensualRetenciones, acumC, acumR) {
+  const mesesConCompras = mensualCompras.filter(x => Number(x.Total_compras || 0) > 0);
+  const mesesConRet = mensualRetenciones.filter(x => Number(x.Total_retenido || 0) > 0);
+
+  const promedioCompras = mesesConCompras.length ? acumC.Total_compras / mesesConCompras.length : 0;
+  const promedioIVA = mesesConCompras.length ? acumC.IVA / mesesConCompras.length : 0;
+  const promedioRet = mesesConRet.length ? acumR.Total_retenido / mesesConRet.length : 0;
+
+  const mesMayorCompra = mensualCompras.reduce((a,b) => Number(b.Total_compras || 0) > Number(a.Total_compras || 0) ? b : a, mensualCompras[0] || {});
+  const mesMayorRet = mensualRetenciones.reduce((a,b) => Number(b.Total_retenido || 0) > Number(a.Total_retenido || 0) ? b : a, mensualRetenciones[0] || {});
+
+  return {
+    Promedio_compras_mensual: promedioCompras,
+    Promedio_IVA_mensual: promedioIVA,
+    Promedio_retenciones_mensual: promedioRet,
+    IVA_sobre_compras_pct: acumC.Total_compras ? (acumC.IVA / acumC.Total_compras * 100) : 0,
+    Retenciones_sobre_compras_pct: acumC.Total_compras ? (acumR.Total_retenido / acumC.Total_compras * 100) : 0,
+    Mes_mayor_compra: mesMayorCompra.Mes || "",
+    Valor_mayor_compra: Number(mesMayorCompra.Total_compras || 0),
+    Mes_mayor_retencion: mesMayorRet.Mes || "",
+    Valor_mayor_retencion: Number(mesMayorRet.Total_retenido || 0)
+  };
+}
+
+function renderDashboardEjecutivo(data) {
+  const cont = document.getElementById("dashboardEjecutivo");
+  if (!cont || !data) return;
+
+  const c = data.acumuladoCompras;
+  const r = data.acumuladoRetenciones;
+  const i = data.indicadores;
+
+  cont.innerHTML = `
+    <div class="exec-grid">
+      <div class="exec-card"><div class="t">Compras acumuladas</div><div class="n">$ ${fmtDash_CORREGIDO(c.Total_compras)}</div><div class="s">${c.Comprobantes} comprobantes</div></div>
+      <div class="exec-card"><div class="t">IVA crédito compras</div><div class="n">$ ${fmtDash_CORREGIDO(c.IVA)}</div><div class="s">${fmtDash_CORREGIDO(i.IVA_sobre_compras_pct)}% sobre compras</div></div>
+      <div class="exec-card"><div class="t">Retenciones recibidas</div><div class="n">$ ${fmtDash_CORREGIDO(r.Total_retenido)}</div><div class="s">${r.XML} XML · ${r.Lineas} líneas</div></div>
+      <div class="exec-card"><div class="t">Promedio compras/mes</div><div class="n">$ ${fmtDash_CORREGIDO(i.Promedio_compras_mensual)}</div><div class="s">solo meses con movimiento</div></div>
+      <div class="exec-card"><div class="t">Mes mayor compra</div><div class="n">${i.Mes_mayor_compra || "-"}</div><div class="s">$ ${fmtDash_CORREGIDO(i.Valor_mayor_compra)}</div></div>
+      <div class="exec-card"><div class="t">Mes mayor retención</div><div class="n">${i.Mes_mayor_retencion || "-"}</div><div class="s">$ ${fmtDash_CORREGIDO(i.Valor_mayor_retencion)}</div></div>
+    </div>
+    <div class="export-note">Puedes bajar este dashboard a Excel con el botón superior. Se exportan: resumen ejecutivo, compras por mes, retenciones por mes e indicadores.</div>
+  `;
+}
+
+function renderGraficosEjecutivos(data) {
+  if (!data) return;
+
+  const panel = document.getElementById("panelDash");
+  if (!panel) return;
+
+  const maxCompras = Math.max(...data.mensualCompras.map(x => Number(x.Total_compras || 0)), 1);
+  const maxIVA = Math.max(...data.mensualCompras.map(x => Number(x.IVA || 0)), 1);
+  const maxRet = Math.max(...data.mensualRetenciones.map(x => Number(x.Total_retenido || 0)), 1);
+
+  const charts = `
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3 class="chart-title">📈 Compras por mes</h3>
+        ${data.mensualCompras.map(x => barraGrafico(x.Mes, x.Total_compras, maxCompras, "")).join("")}
+      </div>
+      <div class="chart-box">
+        <h3 class="chart-title">🧾 Retenciones por mes</h3>
+        ${data.mensualRetenciones.map(x => barraGrafico(x.Mes, x.Total_retenido, maxRet, "ret")).join("")}
+      </div>
+      <div class="chart-box">
+        <h3 class="chart-title">💰 IVA por mes</h3>
+        ${data.mensualCompras.map(x => barraGrafico(x.Mes, x.IVA, maxIVA, "iva")).join("")}
+      </div>
+    </div>
+  `;
+
+  if (!document.getElementById("graficosEjecutivosDash")) {
+    panel.insertAdjacentHTML("beforebegin", `<div id="graficosEjecutivosDash">${charts}</div>`);
+  } else {
+    document.getElementById("graficosEjecutivosDash").innerHTML = charts;
+  }
+}
+
+function barraGrafico(label, value, max, cls) {
+  const pct = Math.max(2, Number(value || 0) / max * 100);
+  return `
+    <div class="barline">
+      <div>${label}</div>
+      <div class="bartrack"><div class="barfill ${cls}" style="width:${pct}%;"></div></div>
+      <div>$ ${fmtDash_CORREGIDO(value)}</div>
+    </div>
+  `;
+}
+
+function exportarDashboardExcel() {
+  const data = window.__dashboardTributarioData;
+
+  if (!data) {
+    alert("Primero carga los Excel acumulados y genera el dashboard.");
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  const resumenEjecutivo = [
+    ["Indicador", "Valor"],
+    ["Comprobantes compras", data.acumuladoCompras.Comprobantes],
+    ["Valor sin impuestos", data.acumuladoCompras.Valor_sin_impuestos],
+    ["Base IVA", data.acumuladoCompras.Base_IVA],
+    ["Base sin IVA", data.acumuladoCompras.Base_sin_IVA],
+    ["IVA compras", data.acumuladoCompras.IVA],
+    ["Total compras", data.acumuladoCompras.Total_compras],
+    ["XML retenciones", data.acumuladoRetenciones.XML],
+    ["Líneas retenciones", data.acumuladoRetenciones.Lineas],
+    ["Base retenida", data.acumuladoRetenciones.Base_retenida],
+    ["Total retenido", data.acumuladoRetenciones.Total_retenido],
+    ["Promedio compras mensual", data.indicadores.Promedio_compras_mensual],
+    ["Promedio IVA mensual", data.indicadores.Promedio_IVA_mensual],
+    ["Promedio retenciones mensual", data.indicadores.Promedio_retenciones_mensual],
+    ["IVA / Compras %", data.indicadores.IVA_sobre_compras_pct],
+    ["Retenciones / Compras %", data.indicadores.Retenciones_sobre_compras_pct],
+    ["Mes mayor compra", data.indicadores.Mes_mayor_compra],
+    ["Valor mayor compra", data.indicadores.Valor_mayor_compra],
+    ["Mes mayor retención", data.indicadores.Mes_mayor_retencion],
+    ["Valor mayor retención", data.indicadores.Valor_mayor_retencion]
+  ];
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenEjecutivo), "Resumen Ejecutivo");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mensualCompras), "Compras por Mes");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mensualRetenciones), "Retenciones por Mes");
+
+  const retPorGrupo = (data.rets.porGrupo || []).map(x => ({
+    Retencion: x.etiqueta,
+    Codigo: x.codigo,
+    Porcentaje: x.porcentaje,
+    Base: x.base,
+    Retenido: x.retenido
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(retPorGrupo), "Retenciones Resumen");
+
+  const anio = document.getElementById("dashAnio") ? document.getElementById("dashAnio").value : "2026";
+  XLSX.writeFile(wb, "Dashboard_Tributario_" + anio + ".xlsx");
 }
 </script>
 
