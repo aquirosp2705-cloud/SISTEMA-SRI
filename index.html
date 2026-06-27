@@ -364,6 +364,50 @@
       line-height: 1.4;
     }
 
+
+    .toggle-card {
+      margin-top: 16px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 0;
+      box-shadow: 0 5px 16px rgba(31, 41, 55, .06);
+      overflow: hidden;
+    }
+    .toggle-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 20px;
+      cursor: pointer;
+      color: var(--primary);
+      font-size: 22px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffffff, #f8fbff);
+    }
+    .toggle-head span.sub {
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .toggle-body { display: none; padding: 0 20px 20px; }
+    .toggle-card.open .toggle-body { display: block; }
+    .toggle-icon {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #eaf1fb;
+      color: var(--primary);
+      font-weight: 900;
+      flex: 0 0 auto;
+      transition: transform .15s ease;
+    }
+    .toggle-card.open .toggle-icon { transform: rotate(90deg); }
+
     footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1956,8 +2000,281 @@ function exportarDashboardExcel() {
 }
 </script>
 
+
+<script>
+/* ==========================================================
+   RESUMEN DESPLEGABLE POR PROVEEDOR
+   Solo HTML. No modifica Code.gs.
+   ========================================================== */
+
+(function activarResumenProveedor(){
+  const intentar = setInterval(() => {
+    if (typeof window.leerExcelComprasAcumuladoDashboard_CORREGIDO === "function" &&
+        typeof window.leerExcelRetencionesAcumuladoDashboard_CORREGIDO === "function" &&
+        typeof window.renderDashboardTributario_CORREGIDO === "function") {
+
+      clearInterval(intentar);
+
+      const leerComprasOriginal = window.leerExcelComprasAcumuladoDashboard_CORREGIDO;
+      const leerRetOriginal = window.leerExcelRetencionesAcumuladoDashboard_CORREGIDO;
+      const renderOriginal = window.renderDashboardTributario_CORREGIDO;
+
+      window.leerExcelComprasAcumuladoDashboard_CORREGIDO = async function(file) {
+        const wb = await leerWorkbook_CORREGIDO(file);
+        const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("COMPRA")) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "", raw: true });
+        const resultado = await leerComprasOriginal(file);
+        resultado.proveedores = calcularComprasPorProveedor(rows);
+        return resultado;
+      };
+
+      window.leerExcelRetencionesAcumuladoDashboard_CORREGIDO = async function(file) {
+        const wb = await leerWorkbook_CORREGIDO(file);
+        const sheetName = wb.SheetNames.find(n => n.toUpperCase().includes("RETENC")) || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "", raw: true });
+        const resultado = await leerRetOriginal(file);
+        resultado.proveedores = calcularRetencionesPorProveedor(rows);
+        return resultado;
+      };
+
+      window.renderDashboardTributario_CORREGIDO = function(compras, rets) {
+        renderOriginal(compras, rets);
+        renderResumenProveedor(compras, rets);
+      };
+    }
+  }, 100);
+})();
+
+function calcularComprasPorProveedor(rows) {
+  const mapa = {};
+  rows.forEach(r => {
+    if (typeof esDetalleCompra_CORREGIDO === "function" && !esDetalleCompra_CORREGIDO(r)) return;
+
+    const ruc = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["RUC PROVEEDOR", "ruc", "RUC"]));
+    const proveedor = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["PROVEEDOR", "razonSocial", "RAZON SOCIAL"]));
+    const key = (ruc || proveedor || "SIN IDENTIFICAR").toUpperCase();
+
+    const doc = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["CLAVE ACCESO", "DOCUMENTO", "claveAcceso", "documento"]));
+    const valorSinImp = num_CORREGIDO(valorCampo_CORREGIDO(r, ["VALOR SIN IMPUESTOS", "valorSinImpuestos"]));
+    const baseIVA = num_CORREGIDO(valorCampo_CORREGIDO(r, ["BASE IVA", "baseIVA"]));
+    const baseSinIVA = num_CORREGIDO(valorCampo_CORREGIDO(r, ["BASE SIN IVA", "baseSinIVA", "BASE 0"]));
+    const iva = num_CORREGIDO(valorCampo_CORREGIDO(r, ["IVA", "iva"]));
+    const total = num_CORREGIDO(valorCampo_CORREGIDO(r, ["TOTAL", "total", "IMPORTE TOTAL"]));
+
+    if (valorSinImp === 0 && baseIVA === 0 && baseSinIVA === 0 && iva === 0 && total === 0) return;
+
+    if (!mapa[key]) {
+      mapa[key] = { ruc, proveedor: proveedor || key, comprobantesSet: new Set(), comprobantes: 0, valorSinImpuestos: 0, baseIVA: 0, baseSinIVA: 0, iva: 0, total: 0 };
+    }
+    if (doc) mapa[key].comprobantesSet.add(doc);
+    mapa[key].valorSinImpuestos += valorSinImp;
+    mapa[key].baseIVA += baseIVA;
+    mapa[key].baseSinIVA += baseSinIVA;
+    mapa[key].iva += iva;
+    mapa[key].total += total;
+  });
+  return Object.values(mapa).map(x => {
+    x.comprobantes = x.comprobantesSet.size;
+    delete x.comprobantesSet;
+    return x;
+  }).sort((a,b) => Number(b.total || 0) - Number(a.total || 0));
+}
+
+function calcularRetencionesPorProveedor(rows) {
+  const mapa = {};
+  const gruposGlobal = new Map();
+
+  rows.forEach(r => {
+    if (typeof esDetalleRetencion_CORREGIDO === "function" && !esDetalleRetencion_CORREGIDO(r)) return;
+
+    const ruc = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["ruc", "RUC", "RUC EMISOR"]));
+    const proveedor = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["razonSocial", "RAZON SOCIAL", "razonSocialSujetoRetenido", "sujetoRetenido"]));
+    const archivo = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["ARCHIVO XML", "ARCHIVO", "archivo"]));
+
+    const codigo = texto_CORREGIDO(valorCampo_CORREGIDO(r, ["CODIGO RETENCION", "codigoRetencion", "CODIGO"]));
+    const porcentaje = num_CORREGIDO(valorCampo_CORREGIDO(r, ["porcentajeRetener", "PORCENTAJE RETENER", "PORCENTAJE", "%"]));
+    const base = num_CORREGIDO(valorCampo_CORREGIDO(r, ["baseImponible", "BASE IMPONIBLE", "BASE"]));
+    const retenido = num_CORREGIDO(valorCampo_CORREGIDO(r, ["valorRetenido", "VALOR RETENIDO", "RETENIDO"]));
+
+    if (base === 0 && retenido === 0) return;
+
+    const etiqueta = codigo ? (codigo + " / " + fmtPctLabel_CORREGIDO(porcentaje)) : fmtPctLabel_CORREGIDO(porcentaje);
+    const grupoKey = codigo + "|" + String(porcentaje);
+    gruposGlobal.set(grupoKey, { key: grupoKey, etiqueta, codigo, porcentaje });
+
+    const key = (ruc || proveedor || "SIN IDENTIFICAR").toUpperCase();
+
+    if (!mapa[key]) {
+      mapa[key] = { ruc, proveedor: proveedor || key, archivosSet: new Set(), archivos: 0, lineas: 0, baseRetenida: 0, totalRetenido: 0, grupos: {} };
+    }
+
+    if (archivo) mapa[key].archivosSet.add(archivo);
+    mapa[key].lineas += 1;
+    mapa[key].baseRetenida += base;
+    mapa[key].totalRetenido += retenido;
+
+    if (!mapa[key].grupos[grupoKey]) {
+      mapa[key].grupos[grupoKey] = { base: 0, retenido: 0, etiqueta, codigo, porcentaje };
+    }
+    mapa[key].grupos[grupoKey].base += base;
+    mapa[key].grupos[grupoKey].retenido += retenido;
+  });
+
+  return {
+    grupos: Array.from(gruposGlobal.values()).sort((a,b) => {
+      const c = String(a.codigo || "").localeCompare(String(b.codigo || ""));
+      if (c !== 0) return c;
+      return Number(a.porcentaje || 0) - Number(b.porcentaje || 0);
+    }),
+    proveedores: Object.values(mapa).map(x => {
+      x.archivos = x.archivosSet.size;
+      delete x.archivosSet;
+      return x;
+    }).sort((a,b) => Number(b.totalRetenido || 0) - Number(a.totalRetenido || 0))
+  };
+}
+
+function renderResumenProveedor(compras, rets) {
+  const cont = document.getElementById("tablaAnualDash");
+  if (!cont) return;
+  cont.insertAdjacentHTML("beforeend", renderComprasProveedor(compras.proveedores || []) + renderRetencionesProveedor((rets.proveedores || {}).proveedores || [], (rets.proveedores || {}).grupos || []));
+}
+
+function renderComprasProveedor(items) {
+  return `
+    <div class="toggle-card" id="toggleComprasProveedor">
+      <div class="toggle-head" onclick="toggleProveedor('toggleComprasProveedor')">
+        <div><span class="toggle-icon">▶</span> 🛒 Resumen de compras por proveedor</div>
+        <span class="sub">${items.length} proveedor(es)</span>
+      </div>
+      <div class="toggle-body">
+        <div class="table-scroll">
+          <table class="dash-table">
+            <tr>
+              <th>Proveedor</th><th>RUC</th><th>Comprob.</th><th>Valor sin imp.</th><th>Base IVA</th><th>Base sin IVA</th><th>IVA</th><th>Total compras</th>
+            </tr>
+            ${items.map(x => `
+              <tr>
+                <td>${escapeHtml(x.proveedor || "")}</td>
+                <td>${escapeHtml(x.ruc || "")}</td>
+                <td>${x.comprobantes || 0}</td>
+                <td>$ ${fmtDash_CORREGIDO(x.valorSinImpuestos)}</td>
+                <td>$ ${fmtDash_CORREGIDO(x.baseIVA)}</td>
+                <td>$ ${fmtDash_CORREGIDO(x.baseSinIVA)}</td>
+                <td>$ ${fmtDash_CORREGIDO(x.iva)}</td>
+                <td>$ ${fmtDash_CORREGIDO(x.total)}</td>
+              </tr>
+            `).join("")}
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderRetencionesProveedor(items, grupos) {
+  return `
+    <div class="toggle-card" id="toggleRetencionesProveedor">
+      <div class="toggle-head" onclick="toggleProveedor('toggleRetencionesProveedor')">
+        <div><span class="toggle-icon">▶</span> 🧾 Resumen de retenciones por proveedor</div>
+        <span class="sub">${items.length} proveedor(es)</span>
+      </div>
+      <div class="toggle-body">
+        <div class="table-scroll">
+          <table class="dash-table">
+            <tr>
+              <th>Proveedor</th><th>RUC</th><th>XML</th><th>Líneas</th>
+              ${grupos.map(g => `<th>Base ${escapeHtml(g.etiqueta)}</th><th>Ret. ${escapeHtml(g.etiqueta)}</th>`).join("")}
+              <th>Total base</th><th>Total retenido</th>
+            </tr>
+            ${items.map(x => `
+              <tr>
+                <td>${escapeHtml(x.proveedor || "")}</td>
+                <td>${escapeHtml(x.ruc || "")}</td>
+                <td>${x.archivos || 0}</td>
+                <td>${x.lineas || 0}</td>
+                ${grupos.map(g => {
+                  const item = (x.grupos || {})[g.key] || { base: 0, retenido: 0 };
+                  return `<td>$ ${fmtDash_CORREGIDO(item.base)}</td><td>$ ${fmtDash_CORREGIDO(item.retenido)}</td>`;
+                }).join("")}
+                <td>$ ${fmtDash_CORREGIDO(x.baseRetenida)}</td>
+                <td>$ ${fmtDash_CORREGIDO(x.totalRetenido)}</td>
+              </tr>
+            `).join("")}
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleProveedor(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle("open");
+}
+
+function escapeHtml(v) {
+  return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Exporta también las hojas por proveedor.
+if (typeof window.exportarDashboardExcel === "function") {
+  const exportOriginalProveedor = window.exportarDashboardExcel;
+  window.exportarDashboardExcel = function() {
+    const data = window.__dashboardTributarioData;
+    if (!data) {
+      alert("Primero carga los Excel acumulados y genera el dashboard.");
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    const resumenEjecutivo = [
+      ["Indicador", "Valor"],
+      ["Comprobantes compras", data.acumuladoCompras.Comprobantes],
+      ["Valor sin impuestos", data.acumuladoCompras.Valor_sin_impuestos],
+      ["Base IVA", data.acumuladoCompras.Base_IVA],
+      ["Base sin IVA", data.acumuladoCompras.Base_sin_IVA],
+      ["IVA compras", data.acumuladoCompras.IVA],
+      ["Total compras", data.acumuladoCompras.Total_compras],
+      ["XML retenciones", data.acumuladoRetenciones.XML],
+      ["Líneas retenciones", data.acumuladoRetenciones.Lineas],
+      ["Base retenida", data.acumuladoRetenciones.Base_retenida],
+      ["Total retenido", data.acumuladoRetenciones.Total_retenido]
+    ];
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenEjecutivo), "Resumen Ejecutivo");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mensualCompras), "Compras por Mes");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.mensualRetenciones), "Retenciones por Mes");
+
+    const comprasProv = (data.compras.proveedores || []).map(x => ({
+      Proveedor: x.proveedor, RUC: x.ruc, Comprobantes: x.comprobantes,
+      Valor_sin_impuestos: x.valorSinImpuestos, Base_IVA: x.baseIVA,
+      Base_sin_IVA: x.baseSinIVA, IVA: x.iva, Total_compras: x.total
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(comprasProv), "Compras Proveedor");
+
+    const retObj = data.rets.proveedores || { proveedores: [], grupos: [] };
+    const retProv = (retObj.proveedores || []).map(x => {
+      const row = { Proveedor: x.proveedor, RUC: x.ruc, XML: x.archivos, Lineas: x.lineas };
+      (retObj.grupos || []).forEach(g => {
+        const item = (x.grupos || {})[g.key] || { base: 0, retenido: 0 };
+        row["Base " + g.etiqueta] = item.base;
+        row["Retenido " + g.etiqueta] = item.retenido;
+      });
+      row.Total_base = x.baseRetenida;
+      row.Total_retenido = x.totalRetenido;
+      return row;
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(retProv), "Retenciones Proveedor");
+
+    const anio = document.getElementById("dashAnio") ? document.getElementById("dashAnio").value : "2026";
+    XLSX.writeFile(wb, "Dashboard_Tributario_" + anio + ".xlsx");
+  };
+}
+</script>
+
 </body>
 </html>
+
 
 
 
