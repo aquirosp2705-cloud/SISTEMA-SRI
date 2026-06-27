@@ -204,8 +204,23 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>8.0</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>9.0</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Control anual</span></div>
+  </section>
+
+  <section class="card">
+    <h2>📌 Dashboard de Control</h2>
+    <p>Resumen rápido del año seleccionado, incluyendo importados y duplicados rechazados.</p>
+    <div class="grid">
+      <div>
+        <label>Año</label>
+        <input id="anioDashboard" type="number" value="2026" min="2020" max="2035">
+      </div>
+      <div style="display:flex;align-items:end;">
+        <button onclick="cargarDashboard()">📌 Cargar Dashboard</button>
+      </div>
+    </div>
+    <div id="dashboardPanel" class="summary"></div>
   </section>
 
   <section class="grid">
@@ -328,8 +343,8 @@
   </section>
 
   <section class="card">
-    <h2>⚠️ Duplicados</h2>
-    <p>Elige qué duplicados quieres revisar. Los duplicados quedan como pestaña dentro del Excel correspondiente.</p>
+    <h2>⚠️ Centro de Duplicados</h2>
+    <p>Consulta en pantalla los duplicados rechazados sin entrar a Drive ni abrir el Excel.</p>
 
     <div class="grid">
       <div>
@@ -372,11 +387,23 @@
       </div>
     </div>
 
+    <div class="grid" style="margin-top:12px;">
+      <div>
+        <label>Buscar proveedor/emisor</label>
+        <input id="buscarDupNombre" type="text" placeholder="Proveedor o emisor">
+      </div>
+      <div>
+        <label>Buscar documento / clave</label>
+        <input id="buscarDupDoc" type="text" placeholder="Documento, clave o retención">
+      </div>
+    </div>
+
     <div class="button-row three" style="margin-top:14px;">
-      <button onclick="buscarDuplicadoSeleccionado()">⚠️ Buscar Duplicados</button>
+      <button onclick="buscarDuplicadoSeleccionado()">🔍 Ver Duplicados en App</button>
     </div>
 
     <div id="duplicadosPanel"></div>
+    <div id="duplicadosTabla"></div>
   </section>
 
   <section class="card">
@@ -395,7 +422,7 @@
   </section>
 
   <div class="note">
-    <b>Nuevo en v8.0:</b> rechazo automático de duplicados, descargas por selección, duplicados por selección, reprocesar mes, panel anual y resumen por proveedor. En retenciones, el resumen incluye el emisor.
+    <b>Nuevo en v9.0:</b> centro de duplicados visible en la app, dashboard de control, rechazo automático de duplicados, descargas por selección y panel anual.
   </div>
 
   <div id="resumen" class="summary"></div>
@@ -563,6 +590,27 @@
     document.getElementById("bloqueMesDup").style.display = modo === "mensual" ? "block" : "none";
   }
 
+  function cargarDashboard() {
+    const anio = document.getElementById("anioDashboard").value;
+    ejecutarRequest({ accion: "dashboardControl", anio }, "Cargando dashboard...");
+  }
+
+  function renderDashboard(data) {
+    if (!data.dashboard) return;
+
+    const d = data.dashboard;
+    const cont = document.getElementById("dashboardPanel");
+
+    cont.innerHTML = `
+      <div class="sumitem">Compras importadas<br><span>${d.comprasImportadas || 0}</span></div>
+      <div class="sumitem">Duplicados compras<br><span>${d.duplicadosCompras || 0}</span></div>
+      <div class="sumitem">Total compras<br><span>${formatMoney(d.totalCompras || 0)}</span></div>
+      <div class="sumitem">Retenciones importadas<br><span>${d.retencionesImportadas || 0}</span></div>
+      <div class="sumitem">Duplicados retenciones<br><span>${d.duplicadosRetenciones || 0}</span></div>
+      <div class="sumitem">Total retenido<br><span>${formatMoney(d.totalRetenido || 0)}</span></div>
+    `;
+  }
+
   function buscarExcelSeleccionado() {
     const anio = document.getElementById("anioDescarga").value;
     const mes = document.getElementById("mesDescarga").value;
@@ -613,76 +661,99 @@
   function buscarDuplicadoSeleccionado() {
     const anio = document.getElementById("anioDup").value;
     const mes = document.getElementById("mesDup").value;
-    ejecutarRequest({ accion: "linksDuplicados", anio, mes, seleccion: true }, "Buscando duplicados seleccionados...");
+    const tipo = document.getElementById("tipoDup").value;
+    const modo = document.getElementById("modoDup").value;
+    ejecutarRequest({ accion: "detalleDuplicados", anio, mes, tipo, modo }, "Cargando duplicados en pantalla...");
   }
 
   function renderDuplicados(data) {
-    const cont = document.getElementById("duplicadosPanel");
-    if (!data.duplicados) return;
+    const panel = document.getElementById("duplicadosPanel");
+    const tabla = document.getElementById("duplicadosTabla");
+    if (!data || data.filas === undefined) return;
 
-    const tipo = document.getElementById("tipoDup") ? document.getElementById("tipoDup").value : "";
-    const modo = document.getElementById("modoDup") ? document.getElementById("modoDup").value : "";
+    const total = Number(data.total || 0);
+    const archivo = data.archivo || {};
 
-    let titulo = "";
-    let obj = null;
-
-    if (tipo === "compras" && modo === "mensual") {
-      titulo = "Duplicados compras mensual";
-      obj = data.duplicados.comprasMensual;
-    }
-
-    if (tipo === "compras" && modo === "acumulado") {
-      titulo = "Duplicados compras acumulado anual";
-      obj = data.duplicados.comprasAcumulado;
-    }
-
-    if (tipo === "retenciones" && modo === "mensual") {
-      titulo = "Duplicados retenciones mensual";
-      obj = data.duplicados.retencionesMensual;
-    }
-
-    if (tipo === "retenciones" && modo === "acumulado") {
-      titulo = "Duplicados retenciones acumulado anual";
-      obj = data.duplicados.retencionesAcumulado;
-    }
-
-    if (!obj || !obj.existeArchivo) {
-      cont.innerHTML = `
+    if (total === 0) {
+      panel.innerHTML = `
         <div class="dupgrid">
           <div class="dupcard">
-            <h3>${titulo}</h3>
+            <h3>Resultado</h3>
             <div class="count zero">0</div>
-            <div class="small">Archivo no encontrado</div>
+            <div class="small">Sin duplicados rechazados</div>
+            ${archivo.url ? `<a href="${archivo.url}" target="_blank" rel="noopener">📊 Abrir Excel</a>` : ''}
           </div>
         </div>
       `;
+      tabla.innerHTML = "";
       return;
     }
 
-    if (!obj.existeDuplicados || Number(obj.registros || 0) === 0) {
-      cont.innerHTML = `
-        <div class="dupgrid">
-          <div class="dupcard">
-            <h3>${titulo}</h3>
-            <div class="count zero">0</div>
-            <div class="small">Sin duplicados detectados</div>
-            <a href="${obj.url}" target="_blank" rel="noopener">📊 Abrir Excel</a>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    cont.innerHTML = `
+    panel.innerHTML = `
       <div class="dupgrid">
         <div class="dupcard">
-          <h3>${titulo}</h3>
-          <div class="count">${obj.registros}</div>
-          <div class="small">${obj.nombreHoja}</div>
-          <a href="${obj.url}" target="_blank" rel="noopener">⚠️ Ver duplicados</a>
-          <a href="${obj.xlsx}" target="_blank" rel="noopener">⬇️ Descargar Excel (.xlsx)</a>
+          <h3>Duplicados rechazados</h3>
+          <div class="count">${total}</div>
+          <div class="small">${archivo.nombreHoja || ''}</div>
+          ${archivo.url ? `<a href="${archivo.url}" target="_blank" rel="noopener">⚠️ Ver hoja duplicados</a>` : ''}
+          ${archivo.xlsx ? `<a href="${archivo.xlsx}" target="_blank" rel="noopener">⬇️ Descargar Excel (.xlsx)</a>` : ''}
         </div>
       </div>
+    `;
+
+    renderTablaDuplicados(data.filas, data.tipo);
+  }
+
+  function renderTablaDuplicados(filas, tipo) {
+    const tabla = document.getElementById("duplicadosTabla");
+    const qNombre = (document.getElementById("buscarDupNombre").value || "").toLowerCase();
+    const qDoc = (document.getElementById("buscarDupDoc").value || "").toLowerCase();
+
+    const filtradas = filas.filter(r => {
+      const nombre = tipo === "compras"
+        ? String(r["PROVEEDOR"] || "").toLowerCase()
+        : String(r["EMISOR RETENCION"] || "").toLowerCase();
+
+      const doc = [
+        r["DOCUMENTO"],
+        r["CLAVE ACCESO"],
+        r["NUM RETENCION"],
+        r["CODIGO RETENCION"]
+      ].map(x => String(x || "").toLowerCase()).join(" ");
+
+      return (!qNombre || nombre.includes(qNombre)) && (!qDoc || doc.includes(qDoc));
+    });
+
+    if (filtradas.length === 0) {
+      tabla.innerHTML = `<div class="note">No hay registros con ese filtro.</div>`;
+      return;
+    }
+
+    let headers;
+    if (tipo === "compras") {
+      headers = ["ESTADO", "MOTIVO", "FECHA EMISION", "RUC PROVEEDOR", "PROVEEDOR", "DOCUMENTO", "CLAVE ACCESO", "TOTAL"];
+    } else {
+      headers = ["ESTADO", "MOTIVO", "FECHA RETENCION", "RUC EMISOR", "EMISOR RETENCION", "NUM RETENCION", "CLAVE ACCESO", "VALOR RETENIDO"];
+    }
+
+    const rows = filtradas.map(r => `
+      <tr>
+        ${headers.map(h => {
+          let val = r[h] ?? "";
+          if (h === "ESTADO") val = `<span class="badge-red">${val || "RECHAZADA"}</span>`;
+          if (["TOTAL", "VALOR RETENIDO"].includes(h)) val = formatMoney(val || 0);
+          return `<td>${val}</td>`;
+        }).join("")}
+      </tr>
+    `).join("");
+
+    tabla.innerHTML = `
+      <table>
+        <thead>
+          <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
     `;
   }
 
@@ -722,6 +793,8 @@
         if (data.meses) renderEstadoAnual(data);
         if (data.archivos) renderLinksExcel(data);
         if (data.duplicados) renderDuplicados(data);
+        if (data.dashboard) renderDashboard(data);
+        if (data.filas !== undefined) renderDuplicados(data);
       } else {
         alert("Error: " + (data.mensaje || "Proceso no completado"));
       }
