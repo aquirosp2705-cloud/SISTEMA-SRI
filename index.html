@@ -176,7 +176,7 @@
 <main>
   <section class="status">
     <div class="pill"><strong>Apps Script</strong><span id="estadoScript">Pendiente</span></div>
-    <div class="pill"><strong>Versión esperada</strong><span>6.2</span></div>
+    <div class="pill"><strong>Versión esperada</strong><span>6.3</span></div>
     <div class="pill"><strong>Modo de trabajo</strong><span>Subida múltiple</span></div>
   </section>
 
@@ -212,6 +212,59 @@
         <button class="secondary" onclick="ejecutarAccion('procesarEntradaXML', 'Procesando XML ya existentes en Drive...')">📥 Procesar XML desde Entrada Drive</button>
       </div>
     </div>
+  </section>
+
+
+  <section class="card" style="margin-top:18px;">
+    <h2>📥 Descargar Excel</h2>
+    <p>Elige el tipo, año y mes para descargar el Excel generado. No descarga TXT ni XML.</p>
+
+    <div class="grid">
+      <div>
+        <label>Tipo</label>
+        <select id="tipoExcel" style="width:100%;padding:10px;border-radius:12px;border:1px solid #dbe4f0;">
+          <option value="compras">Compras</option>
+          <option value="retenciones">Retenciones</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Año</label>
+        <input id="anioExcel" type="number" value="2026" min="2020" max="2035" style="width:100%;padding:10px;border-radius:12px;border:1px solid #dbe4f0;">
+      </div>
+
+      <div>
+        <label>Mes</label>
+        <select id="mesExcel" style="width:100%;padding:10px;border-radius:12px;border:1px solid #dbe4f0;">
+          <option value="01">01 ENERO</option>
+          <option value="02">02 FEBRERO</option>
+          <option value="03">03 MARZO</option>
+          <option value="04">04 ABRIL</option>
+          <option value="05">05 MAYO</option>
+          <option value="06">06 JUNIO</option>
+          <option value="07">07 JULIO</option>
+          <option value="08">08 AGOSTO</option>
+          <option value="09">09 SEPTIEMBRE</option>
+          <option value="10">10 OCTUBRE</option>
+          <option value="11">11 NOVIEMBRE</option>
+          <option value="12">12 DICIEMBRE</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Archivo</label>
+        <select id="modoExcel" style="width:100%;padding:10px;border-radius:12px;border:1px solid #dbe4f0;">
+          <option value="mensual">Mensual</option>
+          <option value="acumulado">Acumulado anual</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="button-row" style="margin-top:14px;">
+      <button onclick="descargarExcel()">⬇️ Buscar y Descargar Excel</button>
+    </div>
+
+    <div id="linksExcel" class="links"></div>
   </section>
 
   <div class="note">
@@ -364,6 +417,35 @@
       reader.readAsDataURL(file);
     })));
   }
+
+
+  async function descargarExcel() {
+    const tipo = document.getElementById("tipoExcel").value;
+    const anio = document.getElementById("anioExcel").value;
+    const mes = document.getElementById("mesExcel").value;
+    const modo = document.getElementById("modoExcel").value;
+
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ accion: "linksExcel", tipo, anio, mes, modo })
+    });
+
+    const data = await res.json();
+    const cont = document.getElementById("linksExcel");
+
+    if (!data.ok) {
+      cont.innerHTML = `<div class="note">${data.mensaje || "No encontrado"}</div>`;
+      return;
+    }
+
+    cont.innerHTML = `
+      <a href="${data.xlsx}" target="_blank" rel="noopener">⬇️ Descargar ${data.nombre} (.xlsx)</a>
+      <a href="${data.url}" target="_blank" rel="noopener">📊 Abrir ${data.nombre} en Google Sheets</a>
+    `;
+  }
+
 
   async function ejecutarAccion(accion, mensaje) {
     return ejecutarRequest({ accion }, mensaje);
